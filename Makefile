@@ -3,9 +3,9 @@
 help:
 	@echo "clean - remove all build, test, coverage and Python artifacts"
 	@echo "clean-build - remove build artifacts"
-	@echo "clean-py - remove Python file artifacts"
-	@echo "clean-test - remove test and coverage artifacts"
 	@echo "clean-datasets - remove all downloaded files in datasets/"
+	@echo "clean-dev - remove test and coverage artifacts"
+	@echo "clean-py - remove Python file artifacts"
 
 
 dl:
@@ -20,7 +20,7 @@ json:
 	./bin/us_states.py
 	mv datasets/*.json geonamescache/data/
 
-clean: clean-build clean-py clean-test clean-datasets
+clean: clean-build clean-py clean-dev clean-datasets
 
 clean-datasets:
 	rm -fr datasets/
@@ -37,8 +37,9 @@ clean-py:
 	find . -name '*~' -exec rm -f {} +
 	find . -name '__pycache__' -exec rm -fr {} +
 
-clean-test:
+clean-dev:
 	rm -f .coverage
 	rm -fr .mypy_cache/
 	rm -fr .pytest_cache/
+	rm -fr .ruff_cache/
 	rm -fr htmlcov/
