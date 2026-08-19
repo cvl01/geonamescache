@@ -225,6 +225,7 @@ CountryFields = Literal[CountryNumericFields, CountryStringFields, "continentcod
 
 
 class Country(TypedDict):
+    alternatenames: dict[str, list[str]]
     areakm2: int
     capital: str
     continentcode: ContinentCode

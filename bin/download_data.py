@@ -15,6 +15,8 @@ DOWNLOADS = [
     'http://download.geonames.org/export/dump/cities5000.zip',
     'http://download.geonames.org/export/dump/cities15000.zip',
     'http://download.geonames.org/export/dump/countryInfo.txt',
+    # ~200 MB zipped, ~780 MB extracted: the only source of country alternate names.
+    'http://download.geonames.org/export/dump/alternateNamesV2.zip',
     'http://download.geonames.org/export/dump/timeZones.txt',
     'https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt'
 ]

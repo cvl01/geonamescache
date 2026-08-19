@@ -7,7 +7,7 @@ __license__ = 'MIT'
 import gzip
 import json
 import os
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from typing import Any, TypeVar
 
 from geonamescache.types import (
@@ -118,6 +118,31 @@ class GeonamesCache:
 
     def get_countries_by_names(self) -> dict[str, Country]:
         return self.get_dataset_by_key(self.get_countries(), 'name')
+
+    def get_country_names(
+        self, country: Country, *, languages: Iterable[str] | None = None
+    ) -> list[str]:
+        """The country's `name` plus its alternate names, deduplicated, name first.
+
+        Country alternate names are stored per language because there are a lot of them
+        (~43,600 across all countries, 163 languages for the United Kingdom alone), so a
+        caller matching text in a few languages can take just those. *languages* selects
+        ISO-639 codes to include, defaulting to every language in the record; an unknown
+        code contributes nothing rather than raising.
+
+        Names recorded without a language (the empty-string key) are **always** included:
+        they are language-agnostic, and some are the form most used in English — the
+        Netherlands' `name` is "The Netherlands" and its `en` names do not include the bare
+        "Netherlands", which sits under that key.
+        """
+        by_language = country['alternatenames']
+        wanted = list(by_language.keys() if languages is None else languages)
+        if '' not in wanted:
+            wanted.insert(0, '')
+        names = [country['name']]
+        for language in wanted:
+            names.extend(by_language.get(language, []))
+        return list(dict.fromkeys(names))
 
     def get_us_states_by_names(self) -> dict[USStateName, USState]:
         return self.get_dataset_by_key(self.get_us_states(), 'name')

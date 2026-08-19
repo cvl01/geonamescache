@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+- Add `alternatenames` to country records: the country's alternate names from the GeoNames `alternateNamesV2` dataset, grouped by ISO-639 language code (`countries['NL']['alternatenames']['fr']` → `['Pays-Bas']`). Historic names and non-name reference rows (`link`, `wkdt`, `post`, `iata`, `icao`, `faac`, `unlc`, `tcid`, `phon`, `piny`) are excluded; within each language, preferred names come first. Unlike city alternate names, these are grouped rather than flat, because the source dataset records a language per name and there are a lot of them — 43,600 across all countries, 163 languages for the United Kingdom alone — so a caller matching text in a few languages can take just those. Building the data now downloads `alternateNamesV2.zip` (~200 MB, ~780 MB extracted), which `./bin/countries.py` streams once.
+- Add `get_country_names()`, returning a country's `name` plus its alternate names as a flat deduplicated list, name first, optionally restricted to given languages. Names recorded without a language are always included: some are the form most used in English, e. g. the Netherlands' `name` is "The Netherlands" and its `en` names do not contain the bare "Netherlands".
 - Add `featurecode` to city records, the GeoNames feature code that distinguishes a capital (`PPLC`) or administrative seat (`PPLA` through `PPLA5`) from an ordinary populated place (`PPL`). It is also searchable via `search_cities(attribute='featurecode')`. The feature class is always `P` in these datasets and is not stored.
 - Add `get_cities_by_names()` method returning all city records grouped by name, the index behind `get_cities_by_name()`.
 

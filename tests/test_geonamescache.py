@@ -123,6 +123,48 @@ def test_search_cities_by_featurecode():
     assert all('PPLG' == city['featurecode'] for city in seats)
 
 
+def test_country_alternate_names_are_grouped_by_language():
+    countries = gc.get_countries()
+    dutch = countries['NL']['alternatenames']
+    assert 'Pays-Bas' in dutch['fr']
+    assert 'Niederlande' in dutch['de']
+    assert 'Holland' in dutch['en']
+    # Every country has at least one alternate name.
+    assert all(country['alternatenames'] for country in countries.values())
+
+
+def test_country_alternate_names_exclude_reference_codes():
+    # link/wkdt/post/iata/... rows are ids and codes, not names anyone writes in prose.
+    languages = {lang for c in gc.get_countries().values() for lang in c['alternatenames']}
+    assert not languages & {'link', 'wkdt', 'post', 'iata', 'icao', 'unlc', 'phon', 'piny'}
+
+
+def test_get_country_names_puts_the_name_first_and_deduplicates():
+    names = gc.get_country_names(gc.get_countries()['GB'])
+    assert names[0] == 'United Kingdom'
+    assert len(names) == len(set(names))
+    assert 'Reino Unido' in names and 'Royaume-Uni' in names
+
+
+def test_get_country_names_can_select_languages():
+    names = gc.get_country_names(gc.get_countries()['GB'], languages=('pt',))
+    assert 'Reino Unido' in names
+    assert 'Royaume-Uni' not in names
+
+
+def test_get_country_names_always_includes_unlanguaged_names():
+    # "The Netherlands" is the record's name and its `en` names lack the bare form, which
+    # sits under the empty-language key — selecting languages must not drop it.
+    names = gc.get_country_names(gc.get_countries()['NL'], languages=('fr',))
+    assert 'Netherlands' in names
+    assert 'Pays-Bas' in names
+
+
+def test_get_country_names_ignores_unknown_languages():
+    names = gc.get_country_names(gc.get_countries()['NL'], languages=('zz',))
+    assert 'Netherlands' in names
+
+
 def test_get_countries_by_names():
     # Length of get_countries_by_names dict and get_countries dict must be
     # the same, unless country names wouldn't be unique.

@@ -54,6 +54,10 @@ This function returns a list of city records that match the given `NAME`.
 * By default the search is case insensitive, it can be made case sensitive by changing `case_sensitive` to True.
 * By default the search is contains, it can be made exact equality by changing `contains_search` to False.
 
+To get a country's names in every language, or a few of them:
+
+* get\_country\_names(country, languages=None)
+
 To resolve the administrative division a city belongs to, use:
 
 * get\_admin1\_by\_city(city)
@@ -98,10 +102,43 @@ A dictionary of 252 countries keyed by ISO alpha-2 code.
         'phone': '1',
         'postalcoderegex': '^\\d{5}(-\\d{4})?$',
         'languages': 'en-US,es-US,haw,fr',
-        'neighbours': 'CA,MX,CU'
+        'neighbours': 'CA,MX,CU',
+        'alternatenames': {
+            'en': ['United States of America', 'United States', 'America', 'USA', ...],
+            'fr': ['États-Unis', ...],
+            ...
+        }
     }
 
 `get_countries_by_names()` returns the same records keyed by country name instead, e. g. `gc.get_countries_by_names()['Spain']`.
+
+`alternatenames` holds the country's other names grouped by ISO-639 language code, with the preferred name of each language first:
+
+    >>> gc.get_countries()['NL']['alternatenames']['fr']
+    ['Pays-Bas']
+
+They are grouped rather than flat — unlike city alternate names, whose source column records no language — because there are a great many of them: 43,600 across all countries, and 163 languages for the United Kingdom alone. A caller matching text in a few languages can then take only those. Historic names and rows that are reference codes rather than names (`link`, `wkdt`, `post`, `iata`, `icao`, `faac`, `unlc`, `tcid`, `phon`, `piny`) are excluded when the data is built.
+
+### get_country_names()
+
+A country's `name` plus its alternate names, as one deduplicated list with the name first. This is the form to use when matching names found in text:
+
+    >>> gc.get_country_names(gc.get_countries()['GB'])[:4]
+    ['United Kingdom', 'Great Britain', 'Britain', 'UK']
+
+Pass `languages` to take only some of them. Note that 163 languages of names is a lot to match against, so narrowing to the languages you actually expect is usually worth it:
+
+    >>> gc.get_country_names(gc.get_countries()['GB'], languages=('pt', 'es'))
+    ['United Kingdom', 'Britain', 'Reino Unido', 'RU']
+
+("Britain" is there because it is one of the unlanguaged names described below, not because it is Portuguese or Spanish.)
+
+Names recorded **without** a language are always included, whatever `languages` says, because they are language-agnostic and some are the form most used in English. The Netherlands is the example that matters: its `name` is "The Netherlands" and its `en` names do not contain the bare "Netherlands", which sits under the empty-language key.
+
+    >>> 'Netherlands' in gc.get_country_names(gc.get_countries()['NL'], languages=('fr',))
+    True
+
+An unknown language code contributes nothing rather than raising.
 
 ### get_cities()
 
@@ -248,4 +285,4 @@ The mappers module provides function(s) to map data properties. Currently you ca
 
 ## Contributing
 
-Please write test(s) for any new feature. If you wish to build the data from scratch, run `make dl` and `make json`. The `bin/` scripts write plain JSON into `datasets/`, and `bin/compress_data.py` gzips it into `geonamescache/data/` as the last step of `make json`.
+Please write test(s) for any new feature. If you wish to build the data from scratch, run `make dl` and `make json`. Note that `make dl` fetches `alternateNamesV2.zip` for the country alternate names, which is about 200 MB zipped and 780 MB extracted; `./bin/countries.py` streams it once and keeps only the ~250 country records. The `bin/` scripts write plain JSON into `datasets/`, and `bin/compress_data.py` gzips it into `geonamescache/data/` as the last step of `make json`.
