@@ -8,9 +8,20 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 <!-- insertion marker -->
 ## [Unreleased]
 
+### Fixed
+
+- Fix dataset caching. `_load_data()` returned the parsed data without storing it, so every getter call re-read and re-parsed its JSON file from disk. Repeated `get_cities()` calls on the 500-population dataset took roughly 0.4 s each and now cost nothing after the first.
+- Fix `get_cities_by_name()` returning results from the wrong dataset. Its cache was a class attribute keyed by city name only, while results depend on `min_city_population`, so an instance created after one with a smaller dataset was served the other instance's results. The cache is now per instance.
+
 ### Added
 
 - Add `get_admin1_codes()` method returning first-level administrative division data from the GeoNames `admin1CodesASCII.txt` dataset, keyed by `<countrycode>.<admin1code>` (e. g. `US.CA`), which allows resolving the `countrycode`/`admin1code` references stored in city records.
+- Add `get_admin2_codes()` method returning second-level administrative division data from the GeoNames `admin2Codes.txt` dataset, keyed by `<countrycode>.<admin1code>.<admin2code>` (e. g. `NL.11.0599`).
+- Add `admin2code` to city records, completing the composite key needed to look up second-level divisions.
+- Add `get_admin1_by_city()` and `get_admin2_by_city()` methods that resolve the administrative division of a city record, returning `None` when the city's codes are missing or absent from the division dataset.
+- Add `get_timezones()` method returning time zone data from the GeoNames `timeZones.txt` dataset, keyed by IANA time zone id (e. g. `Europe/Amsterdam`), which resolves the `timezone` field stored in city records.
+- Add `get_timezones_by_country()` method returning the time zones of a country as a list sorted by time zone id, taking a case insensitive ISO alpha-2 country code.
+- Add a data formats section to the README documenting the return value of every method with concrete examples.
 
 ## [3.0.2](https://github.com/yaph/geonamescache/releases/tag/3.0.2) - 2026-07-28
 

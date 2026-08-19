@@ -46,6 +46,7 @@ for min_population in [500, 1000, 5000, 15000]:
             'population': int(population),
             'timezone': timezone,
             'admin1code': admin1code,
+            'admin2code': admin2code,
             'alternatenames': alternatenames.split(','),
         }
 
