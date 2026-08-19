@@ -4,6 +4,7 @@ __author__ = 'Ramiro Gómez'
 __license__ = 'MIT'
 
 
+import gzip
 import json
 import os
 from collections.abc import Mapping
@@ -52,24 +53,24 @@ class GeonamesCache:
 
     def get_continents(self) -> dict[ContinentCode, Continent]:
         if self.continents is None:
-            self.continents = self._load_data('continents.json')
+            self.continents = self._load_data('continents')
         return self.continents
 
     def get_countries(self) -> dict[ISOStr, Country]:
         if self.countries is None:
-            self.countries = self._load_data('countries.json')
+            self.countries = self._load_data('countries')
         return self.countries
 
     def get_admin1_codes(self) -> dict[Admin1CodeStr, Admin1]:
         """Get first-level administrative divisions keyed by <countrycode>.<admin1code>, e. g. US.CA."""
         if self.admin1 is None:
-            self.admin1 = self._load_data('admin1.json')
+            self.admin1 = self._load_data('admin1')
         return self.admin1
 
     def get_admin2_codes(self) -> dict[Admin2CodeStr, Admin2]:
         """Get second-level administrative divisions keyed by <countrycode>.<admin1code>.<admin2code>, e. g. NL.11.0599."""
         if self.admin2 is None:
-            self.admin2 = self._load_data('admin2.json')
+            self.admin2 = self._load_data('admin2')
         return self.admin2
 
     def get_admin1_by_city(self, city: City) -> Admin1 | None:
@@ -95,7 +96,7 @@ class GeonamesCache:
     def get_timezones(self) -> dict[TimeZoneIdStr, TimeZoneInfo]:
         """Get time zones keyed by IANA time zone id, e. g. Europe/Amsterdam."""
         if self.timezones is None:
-            self.timezones = self._load_data('timezones.json')
+            self.timezones = self._load_data('timezones')
         return self.timezones
 
     def get_timezones_by_country(self, countrycode: str) -> list[TimeZoneInfo]:
@@ -112,7 +113,7 @@ class GeonamesCache:
 
     def get_us_states(self) -> dict[USStateCode, USState]:
         if self.us_states is None:
-            self.us_states = self._load_data('us_states.json')
+            self.us_states = self._load_data('us_states')
         return self.us_states
 
     def get_countries_by_names(self) -> dict[str, Country]:
@@ -124,7 +125,7 @@ class GeonamesCache:
     def get_cities(self) -> dict[GeoNameIdStr, City]:
         """Get a dictionary of cities keyed by geonameid."""
         if self.cities is None:
-            self.cities = self._load_data(f'cities{self.min_city_population}.json')
+            self.cities = self._load_data(f'cities{self.min_city_population}')
         return self.cities
 
     def get_cities_by_names(self) -> dict[str, list[City]]:
@@ -149,7 +150,7 @@ class GeonamesCache:
 
     def get_us_counties(self) -> list[USCounty]:
         if self.us_counties is None:
-            self.us_counties = self._load_data('us_counties.json')
+            self.us_counties = self._load_data('us_counties')
         return self.us_counties
 
     def search_cities(
@@ -182,7 +183,8 @@ class GeonamesCache:
         return results
 
     @staticmethod
-    def _load_data(datafile: str) -> Any:
-        """Read and parse a bundled data file. Callers are responsible for caching."""
-        with open(os.path.join(os.path.dirname(__file__), 'data', datafile), encoding='utf-8') as f:
+    def _load_data(dataset: str) -> Any:
+        """Read and parse a bundled dataset. Callers are responsible for caching."""
+        path = os.path.join(os.path.dirname(__file__), 'data', dataset + '.json.gz')
+        with gzip.open(path, 'rt', encoding='utf-8') as f:
             return json.load(f)

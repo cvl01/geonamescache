@@ -19,7 +19,7 @@ A simple example:
     gc = geonamescache.GeonamesCache()
     print(gc.get_countries())
 
-Each `GeonamesCache` instance caches every dataset it loads, so keep one instance around rather than creating a new one per lookup.
+The datasets are bundled gzipped and parsed on first use, so the installed package is about 36 MB. Each `GeonamesCache` instance caches every dataset it loads, so keep one instance around rather than creating a new one per lookup.
 
 ## Settings
 
@@ -242,4 +242,4 @@ The mappers module provides function(s) to map data properties. Currently you ca
 
 ## Contributing
 
-Please write test(s) for any new feature. If you wish to build the data from scratch, run `make dl` and `make json`.
+Please write test(s) for any new feature. If you wish to build the data from scratch, run `make dl` and `make json`. The `bin/` scripts write plain JSON into `datasets/`, and `bin/compress_data.py` gzips it into `geonamescache/data/` as the last step of `make json`.

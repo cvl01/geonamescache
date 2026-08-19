@@ -21,7 +21,7 @@ json:
 	./bin/us_counties.py
 	./bin/us_states.py
 	./bin/timezones.py
-	mv datasets/*.json geonamescache/data/
+	./bin/compress_data.py
 
 clean: clean-build clean-py clean-dev clean-datasets
 

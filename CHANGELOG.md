@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+- Store the bundled datasets gzipped. This cuts the installed size of the package from 203 MB to 36 MB at no cost in load time, as the saved I/O offsets the decompression. Wheel and sdist size are unchanged, since those were already compressed. Building the data now ends with `./bin/compress_data.py` instead of moving the JSON files into place.
+
 - **Breaking:** `get_cities_by_name()` now returns a list of city records, where it previously returned a list of single-entry dictionaries keyed by geonameid. Use `city['geonameid']` to get the id, which the records already carry. Unknown names return an empty list.
 - `get_cities_by_name()` now builds an index of all city names on first call instead of scanning the dataset once per name. Looking up 500 distinct names on the 500 population dataset went from 5.3 s to 0.6 s, and the removed `cities_items` list no longer duplicates the dataset's items.
 
