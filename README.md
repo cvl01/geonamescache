@@ -118,8 +118,14 @@ A dictionary keyed by geonameid **as a string**, holding 34078 cities at the def
         'timezone': 'Europe/Amsterdam',
         'admin1code': '11',
         'admin2code': '0599',
+        'featurecode': 'PPL',
         'alternatenames': ['RTM', 'Ratehrdam', 'Roterdam', ...]
     }
+
+`featurecode` is the GeoNames [feature code](http://www.geonames.org/export/codes.html), which distinguishes a capital (`PPLC`) or an administrative seat (`PPLA` through `PPLA5`) from an ordinary populated place (`PPL`). It is what lets the datasets include capitals below their population threshold, such as Nuuk and Tórshavn. The feature *class* is always `P` in these datasets, so it is not stored. You can search on it:
+
+    >>> len(gc.search_cities('PPLC', attribute='featurecode', contains_search=False))
+    241
 
 City names are not unique, so `get_cities_by_name()` returns a list of records. There is a Rotterdam in both the Netherlands and the US state of New York:
 

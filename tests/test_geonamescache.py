@@ -104,6 +104,25 @@ def test_city_timezone_is_in_timezones():
     assert all(city['timezone'] in timezones for city in gc.get_cities().values())
 
 
+def test_city_featurecode():
+    cities = gc.get_cities()
+    assert 'PPL' == cities['2747891']['featurecode']
+    # Feature codes are never blank in these datasets.
+    assert all(city['featurecode'] for city in cities.values())
+
+    # PPLC marks the capital of a political entity, which is how the datasets
+    # include capitals that fall below their population threshold.
+    capitals = {city['name'] for city in cities.values() if city['featurecode'] == 'PPLC'}
+    for capital in ('Nuuk', 'Belmopan', 'Madrid', 'Washington'):
+        assert capital in capitals
+
+
+def test_search_cities_by_featurecode():
+    seats = gc.search_cities('PPLG', attribute='featurecode', contains_search=False)
+    assert seats
+    assert all('PPLG' == city['featurecode'] for city in seats)
+
+
 def test_get_countries_by_names():
     # Length of get_countries_by_names dict and get_countries dict must be
     # the same, unless country names wouldn't be unique.

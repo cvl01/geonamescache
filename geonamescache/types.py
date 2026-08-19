@@ -118,7 +118,9 @@ USStateName = Literal[
     "West Virginia",
     "Wyoming",
 ]
-CitySearchAttribute = Literal["alternatenames", "admin1code", "admin2code", "countrycode", "name", "timezone"]
+CitySearchAttribute = Literal[
+    "alternatenames", "admin1code", "admin2code", "countrycode", "featurecode", "name", "timezone"
+]
 
 
 class TimeZone(TypedDict):
@@ -195,6 +197,7 @@ class City(TypedDict):
     admin1code: str
     admin2code: str
     countrycode: str
+    featurecode: str
     geonameid: int
     latitude: float
     longitude: float

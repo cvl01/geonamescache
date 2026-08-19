@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+- Add `featurecode` to city records, the GeoNames feature code that distinguishes a capital (`PPLC`) or administrative seat (`PPLA` through `PPLA5`) from an ordinary populated place (`PPL`). It is also searchable via `search_cities(attribute='featurecode')`. The feature class is always `P` in these datasets and is not stored.
 - Add `get_cities_by_names()` method returning all city records grouped by name, the index behind `get_cities_by_name()`.
 
 ### Fixed
