@@ -40,6 +40,7 @@ Currently geonamescache provides the following methods, that return dictionaries
 * get\_countries\_by\_names()
 * get\_us\_states\_by\_names()
 * get\_cities\_by\_name(name)
+* get\_cities\_by\_names()
 * get\_us\_counties()
 * get\_timezones()
 
@@ -120,10 +121,15 @@ A dictionary keyed by geonameid **as a string**, holding 34078 cities at the def
         'alternatenames': ['RTM', 'Ratehrdam', 'Roterdam', ...]
     }
 
-City names are not unique, so `get_cities_by_name()` returns a list of single-entry dictionaries rather than one record. There is a Rotterdam in both the Netherlands and the US state of New York:
+City names are not unique, so `get_cities_by_name()` returns a list of records. There is a Rotterdam in both the Netherlands and the US state of New York:
 
-    >>> [list(d) for d in gc.get_cities_by_name('Rotterdam')]
-    [['2747891'], ['5134453']]
+    >>> [(c['geonameid'], c['countrycode']) for c in gc.get_cities_by_name('Rotterdam')]
+    [(2747891, 'NL'), (5134453, 'US')]
+
+Unknown names give an empty list. The first call builds an index of every city name, so looking up many names costs one pass over the dataset instead of one pass per name. `get_cities_by_names()` returns that whole index, a dictionary mapping each name to its list of records:
+
+    >>> len(gc.get_cities_by_names())
+    32215
 
 `search_cities()` returns a flat list of city records instead. It searches `alternatenames` by default, so it matches places whose *other* names contain the query, here the Rotterdam district of Hoogvliet:
 

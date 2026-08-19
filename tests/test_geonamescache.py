@@ -120,6 +120,33 @@ def test_get_cities_by_name_madrid():
     assert len(gc.get_cities_by_name('Madrid')) > 1
 
 
+def test_get_cities_by_name_returns_city_records():
+    rotterdams = gc.get_cities_by_name('Rotterdam')
+    assert 2 == len(rotterdams)
+    # Records are returned directly, not wrapped in single-key dictionaries.
+    assert ['NL', 'US'] == sorted(city['countrycode'] for city in rotterdams)
+    assert all('Rotterdam' == city['name'] for city in rotterdams)
+
+    # The records are the same objects held by get_cities(), not copies.
+    assert gc.get_cities()['2747891'] in rotterdams
+
+
+def test_get_cities_by_name_unknown():
+    assert [] == gc.get_cities_by_name('Nonexistent Place')
+
+
+def test_get_cities_by_names_index():
+    index = gc.get_cities_by_names()
+    assert index is gc.get_cities_by_names()
+
+    # Every city must appear under its own name, and nothing may be lost.
+    cities = gc.get_cities()
+    assert sum(len(records) for records in index.values()) == len(cities)
+    assert len(index) < len(cities)  # names are not unique
+    for city in cities.values():
+        assert city in index[city['name']]
+
+
 def test_cities_in_us_states():
     cities = gc.get_cities()
     for gid, name, us_state in (('4164138', 'Miami', 'FL'), ('4525353', 'Springfield', 'OH')):
@@ -199,7 +226,7 @@ def test_city_name_cache_is_not_shared_between_instances():
     small = GeonamesCache(min_city_population=15000)
     large = GeonamesCache(min_city_population=500)
 
-    assert small.cities_by_names is not large.cities_by_names
+    assert small.get_cities_by_names() is not large.get_cities_by_names()
 
     small_hits = small.get_cities_by_name('Springfield')
     large_hits = large.get_cities_by_name('Springfield')

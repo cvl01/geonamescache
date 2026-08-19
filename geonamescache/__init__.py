@@ -38,16 +38,14 @@ class GeonamesCache:
     continents: dict[ContinentCode, Continent] | None = None
     countries: dict[ISOStr, Country] | None = None
     cities: dict[GeoNameIdStr, City] | None = None
-    cities_items: list[tuple[GeoNameIdStr, City]] | None = None
     timezones: dict[TimeZoneIdStr, TimeZoneInfo] | None = None
     us_counties: list[USCounty] | None = None
     us_states: dict[USStateCode, USState] | None = None
 
     def __init__(self, min_city_population: int = 15000):
         self.min_city_population = min_city_population
-        # Per instance, because the cache key is the city name alone while the
-        # results depend on min_city_population.
-        self.cities_by_names: dict[str, list[dict[GeoNameIdStr, City]]] = {}
+        # Per instance, because it indexes one particular cities dataset.
+        self.cities_by_names: dict[str, list[City]] | None = None
 
     def get_dataset_by_key(self, dataset: dict[Any, TDict], key: str) -> dict[Any, TDict]:
         return {d[key]: d for c, d in list(dataset.items())}
@@ -129,17 +127,25 @@ class GeonamesCache:
             self.cities = self._load_data(f'cities{self.min_city_population}.json')
         return self.cities
 
-    def get_cities_by_name(self, name: str) -> list[dict[GeoNameIdStr, City]]:
-        """Get a list of city dictionaries with the given name.
+    def get_cities_by_names(self) -> dict[str, list[City]]:
+        """Get city records grouped by name.
 
-        City names cannot be used as keys, as they are not unique.
+        City names are not unique, so each name maps to a list of records.
         """
+        if self.cities_by_names is None:
+            index: dict[str, list[City]] = {}
+            for city in self.get_cities().values():
+                index.setdefault(city['name'], []).append(city)
+            self.cities_by_names = index
+        return self.cities_by_names
 
-        if name not in self.cities_by_names:
-            if self.cities_items is None:
-                self.cities_items = list(self.get_cities().items())
-            self.cities_by_names[name] = [{gid: city} for gid, city in self.cities_items if city['name'] == name]
-        return self.cities_by_names[name]
+    def get_cities_by_name(self, name: str) -> list[City]:
+        """Get the city records with the given name, empty list if there are none.
+
+        Builds an index of all city names on first call, so looking up many
+        names costs one pass over the dataset rather than one pass per name.
+        """
+        return self.get_cities_by_names().get(name, [])
 
     def get_us_counties(self) -> list[USCounty]:
         if self.us_counties is None:
