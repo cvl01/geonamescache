@@ -188,8 +188,12 @@ Pass `attribute='name'` to search the primary name instead, which finds the US R
 
 First-level administrative divisions (states, provinces, regions), 3865 records keyed by the composite code `<countrycode>.<admin1code>`, for example `US.CA` for California or `NL.11` for South Holland.
 
-    >>> gc.get_admin1_codes()['NL.11']
-    {'asciiname': 'South Holland', 'geonameid': 2743698, 'name': 'South Holland'}
+    >>> gc.get_admin1_codes()['NL.11']['name']
+    'Provincie Zuid-Holland'
+    >>> 'South Holland' in gc.get_admin1_codes()['NL.11']['alternatenames']
+    True
+
+`name` and `asciiname` come from the ADM1 records in the GeoNames `allCountries` dataset, so they are the current official name and often local-language. The English form, where one exists, is in `alternatenames`. The older `admin1CodesASCII.txt` dataset names divisions after their preferred English alternate name, which upstream lets go stale, e. g. `VE.25` is still "Distrito Federal" there years after the rename to "Distrito Capital".
 
 ### get_admin2_codes()
 
@@ -206,7 +210,7 @@ Cities store `countrycode`, `admin1code` and `admin2code` separately, so resolvi
 
     >>> city = gc.get_cities()['2747891']
     >>> gc.get_admin1_by_city(city)['name']
-    'South Holland'
+    'Provincie Zuid-Holland'
     >>> gc.get_admin2_by_city(city)['name']
     'Rotterdam'
 

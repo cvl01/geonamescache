@@ -21,4 +21,4 @@ for record in reader:
         'name': name,
     }
 
-p_data.joinpath('admin2.json').write_text(json.dumps(admin2, ensure_ascii=False))
+p_data.joinpath('admin2.json').write_text(json.dumps(admin2, ensure_ascii=False), encoding='utf-8')

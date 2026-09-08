@@ -84,6 +84,6 @@ if __name__ == '__main__':
     states_data = extract_us_states_data()
     if states_data:
         print(f'Total states extracted: {len(states_data)}')
-        Path('geonamescache/data/us_states.json').write_text(json.dumps(states_data))
+        Path('datasets', 'us_states.json').write_text(json.dumps(states_data), encoding='utf-8')
     else:
         print('No data extracted. Please check the URL and HTML structure.')

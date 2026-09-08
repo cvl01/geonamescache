@@ -181,6 +181,7 @@ class Continent(TypedDict):
 
 
 class Admin1(TypedDict):
+    alternatenames: list[str]
     asciiname: str
     geonameid: int
     name: str

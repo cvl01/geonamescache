@@ -4,6 +4,12 @@ import json
 from collections import defaultdict
 from pathlib import Path
 
+# alternateNamesV2.txt column indices. The trailing columns are absent on most rows,
+# so anything past COL_NAME has to be read defensively.
+COL_NAME = 3
+COL_ISPREFERRED = 4
+COL_ISHISTORIC = 7
+
 # isolanguage values in alternateNamesV2.txt that are reference codes rather than names
 # a reader would ever see in prose: links, ids, postal and transport codes.
 NON_NAME_LANGUAGES = frozenset({
@@ -28,16 +34,15 @@ def read_alternate_names(geonameids):
     names = defaultdict(lambda: defaultdict(list))
     with path.open(encoding='utf-8') as fh:
         for record in csv.reader(fh, 'excel-tab'):
-            # Trailing columns (from/to) are absent on most rows, so index defensively.
-            if len(record) < 4:
+            if len(record) <= COL_NAME:
                 continue
-            geonameid, isolanguage, name = record[1], record[2], record[3]
+            geonameid, isolanguage, name = record[1], record[2], record[COL_NAME]
             if geonameid not in geonameids or not name:
                 continue
-            is_historic = record[7] if len(record) > 7 else ''
+            is_historic = record[COL_ISHISTORIC] if len(record) > COL_ISHISTORIC else ''
             if is_historic == '1' or isolanguage in NON_NAME_LANGUAGES:
                 continue
-            is_preferred = (record[4] if len(record) > 4 else '') == '1'
+            is_preferred = (record[COL_ISPREFERRED] if len(record) > COL_ISPREFERRED else '') == '1'
             bucket = names[geonameid][isolanguage]
             bucket.insert(0, name) if is_preferred else bucket.append(name)
     return names
@@ -93,6 +98,6 @@ for record in reader:
 alternate_names = read_alternate_names({str(c['geonameid']) for c in countries.values()})
 for country in countries.values():
     by_language = alternate_names.get(str(country['geonameid']), {})
-    country['alternatenames'] = {lang: names for lang, names in by_language.items()}
+    country['alternatenames'] = dict(by_language)
 
-p_data.joinpath('countries.json').write_text(json.dumps(countries))
+p_data.joinpath('countries.json').write_text(json.dumps(countries), encoding='utf-8')

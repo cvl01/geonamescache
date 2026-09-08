@@ -2,8 +2,12 @@ from collections.abc import Callable
 from typing import Any, Literal, overload
 
 from geonamescache import GeonamesCache, mappings
-from geonamescache.types import ContinentCode, CountryFields, CountryNumericFields, CountryStringFields
-
+from geonamescache.types import (
+    ContinentCode,
+    CountryFields,
+    CountryNumericFields,
+    CountryStringFields,
+)
 
 gc = GeonamesCache()
 countries = gc.get_countries()

@@ -19,7 +19,7 @@ continents = {}
 
 def account_ok(j):
     if j.get('status', {}).get('value') == ACCOUNT_ERR_CODE:
-        sys.exit((j['status']['message']))
+        sys.exit(j['status']['message'])
 
 
 for geoid in continent_ids:
@@ -31,4 +31,4 @@ for geoid in continent_ids:
         continents[cont['continentCode']] = cont
 
 
-Path('datasets', 'continents.json').write_text(json.dumps(continents))
+Path('datasets', 'continents.json').write_text(json.dumps(continents), encoding='utf-8')

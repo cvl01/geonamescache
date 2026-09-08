@@ -8,34 +8,28 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 <!-- insertion marker -->
 ## [Unreleased]
 
-### Changed
-
-- Store the bundled datasets gzipped. This cuts the installed size of the package from 203 MB to 36 MB at no cost in load time, as the saved I/O offsets the decompression. Wheel and sdist size are unchanged, since those were already compressed. Building the data now ends with `./bin/compress_data.py` instead of moving the JSON files into place.
-
-- **Breaking:** `get_cities_by_name()` now returns a list of city records, where it previously returned a list of single-entry dictionaries keyed by geonameid. Use `city['geonameid']` to get the id, which the records already carry. Unknown names return an empty list.
-- `get_cities_by_name()` now builds an index of all city names on first call instead of scanning the dataset once per name. Looking up 500 distinct names on the 500 population dataset went from 5.3 s to 0.6 s, and the removed `cities_items` list no longer duplicates the dataset's items.
-
 ### Added
 
-- Add `alternatenames` to country records: the country's alternate names from the GeoNames `alternateNamesV2` dataset, grouped by ISO-639 language code (`countries['NL']['alternatenames']['fr']` → `['Pays-Bas']`). Historic names and non-name reference rows (`link`, `wkdt`, `post`, `iata`, `icao`, `faac`, `unlc`, `tcid`, `phon`, `piny`) are excluded; within each language, preferred names come first. Unlike city alternate names, these are grouped rather than flat, because the source dataset records a language per name and there are a lot of them — 43,600 across all countries, 163 languages for the United Kingdom alone — so a caller matching text in a few languages can take just those. Building the data now downloads `alternateNamesV2.zip` (~200 MB, ~780 MB extracted), which `./bin/countries.py` streams once.
-- Add `get_country_names()`, returning a country's `name` plus its alternate names as a flat deduplicated list, name first, optionally restricted to given languages. Names recorded without a language are always included: some are the form most used in English, e. g. the Netherlands' `name` is "The Netherlands" and its `en` names do not contain the bare "Netherlands".
-- Add `featurecode` to city records, the GeoNames feature code that distinguishes a capital (`PPLC`) or administrative seat (`PPLA` through `PPLA5`) from an ordinary populated place (`PPL`). It is also searchable via `search_cities(attribute='featurecode')`. The feature class is always `P` in these datasets and is not stored.
-- Add `get_cities_by_names()` method returning all city records grouped by name, the index behind `get_cities_by_name()`.
+- Administrative divisions. `get_admin1_codes()` and `get_admin2_codes()` return first- and second-level divisions keyed by the composite codes `<countrycode>.<admin1code>` (e. g. `US.CA`) and `<countrycode>.<admin1code>.<admin2code>` (e. g. `NL.11.0599`). City records now carry `admin2code` alongside `admin1code`, completing the key, and `get_admin1_by_city()` / `get_admin2_by_city()` resolve a city's division directly, returning `None` when its codes are missing or absent from the division dataset.
+- Time zones. `get_timezones()` returns the GeoNames `timeZones.txt` data keyed by IANA id (e. g. `Europe/Amsterdam`), resolving the `timezone` field on city records. `get_timezones_by_country()` returns a country's zones sorted by id, taking a case insensitive ISO alpha-2 code.
+- Alternate names on country records, from the GeoNames `alternateNamesV2` dataset, grouped by ISO-639 language code (`countries['NL']['alternatenames']['fr']` → `['Pays-Bas']`). Historic names and non-name reference rows (`link`, `wkdt`, `post`, `iata`, `icao`, `faac`, `unlc`, `tcid`, `phon`, `piny`) are excluded; preferred names come first within each language. They are grouped rather than flat because the source records a language per name and there are a lot of them — 43,600 across all countries, 163 languages for the United Kingdom alone — so a caller matching text in a few languages can take just those. Building the data now downloads `alternateNamesV2.zip` (~200 MB, ~780 MB extracted), which `./bin/countries.py` streams once.
+- Alternate names on admin1 records, as a flat list rather than grouped, matching the shape used for cities. This grows `admin1.json.gz` from 0.07 MB to 1.5 MB.
+- `get_country_names()`, a country's `name` plus its alternate names as a flat deduplicated list, name first, optionally restricted to given languages. Names recorded without a language are always included: some are the form most used in English, e. g. the Netherlands' `name` is "The Netherlands" and its `en` names do not contain the bare "Netherlands".
+- `featurecode` on city records, the GeoNames feature code that distinguishes a capital (`PPLC`) or administrative seat (`PPLA` through `PPLA5`) from an ordinary populated place (`PPL`). Searchable via `search_cities(attribute='featurecode')`. The feature class is always `P` in these datasets and is not stored.
+- `get_cities_by_names()`, all city records grouped by name, the index behind `get_cities_by_name()`.
+- A data formats section in the README documenting the return value of every method with concrete examples.
+
+### Changed
+
+- **Breaking:** admin1 records are built from the `ADM1` rows in the GeoNames `allCountries` dataset instead of `admin1CodesASCII.txt`. Keys and geonameids are unchanged, but `name` and `asciiname` change for 2192 of the 3865 divisions. `admin1CodesASCII.txt` names each division after its preferred English alternate name, which upstream lets go stale, e. g. `VE.25` was still "Distrito Federal" years after the rename to "Distrito Capital". The `allCountries` name is current but often local-language: `NL.11` goes from "South Holland" to "Provincie Zuid-Holland", `DE.07` from "North Rhine-Westphalia" to "Nordrhein-Westfalen". The English form stays reachable through the new `alternatenames` field. Building the data now downloads `allCountries.zip` (~400 MB, ~1.8 GB extracted), which `./bin/admin1.py` streams once, and no longer downloads `admin1CodesASCII.txt`.
+- **Breaking:** `get_cities_by_name()` returns a list of city records, where it previously returned a list of single-entry dictionaries keyed by geonameid. Use `city['geonameid']` for the id, which the records already carry. Unknown names return an empty list.
+- `get_cities_by_name()` builds an index of all city names on first call instead of scanning the dataset once per name. Looking up 500 distinct names on the 500-population dataset went from 5.3 s to 0.6 s, and the removed `cities_items` list no longer duplicates the dataset's items.
+- The bundled datasets are stored gzipped, cutting the installed size of the package from 203 MB to 36 MB at no cost in load time, as the saved I/O offsets the decompression. Wheel and sdist size are unchanged, since those were already compressed. Building the data now ends with `./bin/compress_data.py` instead of moving the JSON files into place.
 
 ### Fixed
 
-- Fix dataset caching. `_load_data()` returned the parsed data without storing it, so every getter call re-read and re-parsed its JSON file from disk. Repeated `get_cities()` calls on the 500-population dataset took roughly 0.4 s each and now cost nothing after the first.
-- Fix `get_cities_by_name()` returning results from the wrong dataset. Its cache was a class attribute keyed by city name only, while results depend on `min_city_population`, so an instance created after one with a smaller dataset was served the other instance's results. The cache is now per instance.
-
-### Added
-
-- Add `get_admin1_codes()` method returning first-level administrative division data from the GeoNames `admin1CodesASCII.txt` dataset, keyed by `<countrycode>.<admin1code>` (e. g. `US.CA`), which allows resolving the `countrycode`/`admin1code` references stored in city records.
-- Add `get_admin2_codes()` method returning second-level administrative division data from the GeoNames `admin2Codes.txt` dataset, keyed by `<countrycode>.<admin1code>.<admin2code>` (e. g. `NL.11.0599`).
-- Add `admin2code` to city records, completing the composite key needed to look up second-level divisions.
-- Add `get_admin1_by_city()` and `get_admin2_by_city()` methods that resolve the administrative division of a city record, returning `None` when the city's codes are missing or absent from the division dataset.
-- Add `get_timezones()` method returning time zone data from the GeoNames `timeZones.txt` dataset, keyed by IANA time zone id (e. g. `Europe/Amsterdam`), which resolves the `timezone` field stored in city records.
-- Add `get_timezones_by_country()` method returning the time zones of a country as a list sorted by time zone id, taking a case insensitive ISO alpha-2 country code.
-- Add a data formats section to the README documenting the return value of every method with concrete examples.
+- Dataset caching. `_load_data()` returned the parsed data without storing it, so every getter call re-read and re-parsed its JSON file from disk. Repeated `get_cities()` calls on the 500-population dataset took roughly 0.4 s each and now cost nothing after the first.
+- `get_cities_by_name()` returning results from the wrong dataset. Its cache was a class attribute keyed by city name only, while results depend on `min_city_population`, so an instance created after one with a smaller dataset was served the other instance's results. The cache is now per instance.
 
 ## [3.0.2](https://github.com/yaph/geonamescache/releases/tag/3.0.2) - 2026-07-28
 

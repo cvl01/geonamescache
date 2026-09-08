@@ -25,4 +25,4 @@ for line in reader:
     )
 
 # need ensure_ascii=False to handle special characters (for PR counties)
-p_data.joinpath('us_counties.json').write_text(json.dumps(counties, ensure_ascii=False))
+p_data.joinpath('us_counties.json').write_text(json.dumps(counties, ensure_ascii=False), encoding='utf-8')

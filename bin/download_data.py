@@ -8,7 +8,9 @@ import httpx
 
 # Data files to download
 DOWNLOADS = [
-    'http://download.geonames.org/export/dump/admin1CodesASCII.txt',
+    # ~400 MB zipped, ~1.8 GB extracted: the ADM1 records here carry current division
+    # names, unlike the stale English names in admin1CodesASCII.txt.
+    'http://download.geonames.org/export/dump/allCountries.zip',
     'http://download.geonames.org/export/dump/admin2Codes.txt',
     'http://download.geonames.org/export/dump/cities500.zip',
     'http://download.geonames.org/export/dump/cities1000.zip',

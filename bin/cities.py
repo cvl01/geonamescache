@@ -51,4 +51,4 @@ for min_population in [500, 1000, 5000, 15000]:
             'alternatenames': alternatenames.split(','),
         }
 
-    p_data.joinpath(slug + '.json').write_text(json.dumps(cities))
+    p_data.joinpath(slug + '.json').write_text(json.dumps(cities), encoding='utf-8')

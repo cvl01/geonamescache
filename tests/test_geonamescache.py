@@ -9,18 +9,23 @@ def test_get_admin1_codes():
     for key, name, geonameid in (
         ('US.CA', 'California', 5332921),
         ('ES.51', 'Andalusia', 2593109),
+        ('VE.25', 'Distrito Capital', 3640847),
     ):
         assert name == admin1[key]['name']
         assert geonameid == admin1[key]['geonameid']
+
+
+def test_admin1_carries_alternate_names():
+    assert 'South Holland' in gc.get_admin1_codes()['NL.11']['alternatenames']
 
 
 def test_admin1_code_resolves_city_reference():
     # Cities store countrycode and admin1code separately, the composite
     # admin1 key allows resolving these references.
     city = gc.get_cities()['5368361']
-    assert 'Los Angeles' == city['name']
+    assert city['name'] == 'Los Angeles'
     key = f"{city['countrycode']}.{city['admin1code']}"
-    assert 'California' == gc.get_admin1_codes()[key]['name']
+    assert gc.get_admin1_codes()[key]['name'] == 'California'
 
 
 def test_get_admin2_codes():
@@ -36,19 +41,19 @@ def test_get_admin2_codes():
 
 def test_get_admin1_by_city():
     city = gc.get_cities()['2747891']
-    assert 'Rotterdam' == city['name']
-    assert '11' == city['admin1code']
+    assert city['name'] == 'Rotterdam'
+    assert city['admin1code'] == '11'
     admin1 = gc.get_admin1_by_city(city)
     assert admin1 is not None
-    assert 'South Holland' == admin1['name']
+    assert admin1['name'] == 'Provincie Zuid-Holland'
 
 
 def test_get_admin2_by_city():
     city = gc.get_cities()['2747891']
     admin2 = gc.get_admin2_by_city(city)
     assert admin2 is not None
-    assert 'Rotterdam' == admin2['name']
-    assert 2747890 == admin2['geonameid']
+    assert admin2['name'] == 'Rotterdam'
+    assert admin2['geonameid'] == 2747890
 
 
 def test_get_admin_by_city_unresolvable():
@@ -67,27 +72,27 @@ def test_admin2_code_resolves_city_reference():
     # composite admin2 key allows resolving these references.
     city = gc.get_cities()['2747891']
     key = f"{city['countrycode']}.{city['admin1code']}.{city['admin2code']}"
-    assert 'NL.11.0599' == key
-    assert 'Rotterdam' == gc.get_admin2_codes()[key]['name']
+    assert key == 'NL.11.0599'
+    assert gc.get_admin2_codes()[key]['name'] == 'Rotterdam'
 
 
 def test_get_timezones():
     timezones = gc.get_timezones()
     assert len(timezones) > 400
     amsterdam = timezones['Europe/Amsterdam']
-    assert 'NL' == amsterdam['countrycode']
-    assert 1.0 == amsterdam['rawoffset']
+    assert amsterdam['countrycode'] == 'NL'
+    assert amsterdam['rawoffset'] == 1.0
 
 
 def test_get_timezones_by_country():
-    assert ['Europe/Amsterdam'] == [tz['timezoneid'] for tz in gc.get_timezones_by_country('NL')]
+    assert [tz['timezoneid'] for tz in gc.get_timezones_by_country('NL')] == ['Europe/Amsterdam']
 
     # The US spans many zones, the list must be sorted by time zone id.
     us = [tz['timezoneid'] for tz in gc.get_timezones_by_country('US')]
     assert len(us) > 20
     assert us == sorted(us)
     assert 'Pacific/Honolulu' in us
-    assert all('US' == tz['countrycode'] for tz in gc.get_timezones_by_country('US'))
+    assert all(tz['countrycode'] == 'US' for tz in gc.get_timezones_by_country('US'))
 
 
 def test_get_timezones_by_country_edge_cases():
@@ -95,7 +100,7 @@ def test_get_timezones_by_country_edge_cases():
     assert gc.get_timezones_by_country('nl') == gc.get_timezones_by_country('NL')
 
     # Unknown codes return an empty list rather than raising.
-    assert [] == gc.get_timezones_by_country('ZZ')
+    assert gc.get_timezones_by_country('ZZ') == []
 
 
 def test_city_timezone_is_in_timezones():
@@ -106,7 +111,7 @@ def test_city_timezone_is_in_timezones():
 
 def test_city_featurecode():
     cities = gc.get_cities()
-    assert 'PPL' == cities['2747891']['featurecode']
+    assert cities['2747891']['featurecode'] == 'PPL'
     # Feature codes are never blank in these datasets.
     assert all(city['featurecode'] for city in cities.values())
 
@@ -120,7 +125,7 @@ def test_city_featurecode():
 def test_search_cities_by_featurecode():
     seats = gc.search_cities('PPLG', attribute='featurecode', contains_search=False)
     assert seats
-    assert all('PPLG' == city['featurecode'] for city in seats)
+    assert all(city['featurecode'] == 'PPLG' for city in seats)
 
 
 def test_country_alternate_names_are_grouped_by_language():
@@ -143,7 +148,8 @@ def test_get_country_names_puts_the_name_first_and_deduplicates():
     names = gc.get_country_names(gc.get_countries()['GB'])
     assert names[0] == 'United Kingdom'
     assert len(names) == len(set(names))
-    assert 'Reino Unido' in names and 'Royaume-Uni' in names
+    assert 'Reino Unido' in names
+    assert 'Royaume-Uni' in names
 
 
 def test_get_country_names_can_select_languages():
@@ -183,17 +189,17 @@ def test_get_cities_by_name_madrid():
 
 def test_get_cities_by_name_returns_city_records():
     rotterdams = gc.get_cities_by_name('Rotterdam')
-    assert 2 == len(rotterdams)
+    assert len(rotterdams) == 2
     # Records are returned directly, not wrapped in single-key dictionaries.
-    assert ['NL', 'US'] == sorted(city['countrycode'] for city in rotterdams)
-    assert all('Rotterdam' == city['name'] for city in rotterdams)
+    assert sorted(city['countrycode'] for city in rotterdams) == ['NL', 'US']
+    assert all(city['name'] == 'Rotterdam' for city in rotterdams)
 
     # The records are the same objects held by get_cities(), not copies.
     assert gc.get_cities()['2747891'] in rotterdams
 
 
 def test_get_cities_by_name_unknown():
-    assert [] == gc.get_cities_by_name('Nonexistent Place')
+    assert gc.get_cities_by_name('Nonexistent Place') == []
 
 
 def test_get_cities_by_names_index():

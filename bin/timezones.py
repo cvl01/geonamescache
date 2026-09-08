@@ -28,4 +28,4 @@ for record in reader:
         'rawoffset': float(rawoffset),
     }
 
-p_data.joinpath('timezones.json').write_text(json.dumps(timezones, ensure_ascii=False))
+p_data.joinpath('timezones.json').write_text(json.dumps(timezones, ensure_ascii=False), encoding='utf-8')
