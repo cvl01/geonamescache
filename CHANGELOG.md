@@ -8,6 +8,29 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 <!-- insertion marker -->
 ## [Unreleased]
 
+## [5.0.0](https://github.com/yaph/geonamescache/releases/tag/5.0.0) - 2026-09-10
+
+<small>[Compare with 4.0.0](https://github.com/yaph/geonamescache/compare/4.0.0...5.0.0)</small>
+
+### Added
+
+- `englishname` on admin1 records, the preferred `en` alternate name, `''` for the 484 divisions that have none. 4.0.0 moved `name` to the current, often local-language `allCountries` form and left no way to get an English display label back: the flat alternate name list was alphabetically sorted and untagged, so the first ASCII entry for `NL.11` was "Del-Holland". `admin1CodesASCII.txt` derives its names from the same `en` rows, so this reproduces them — `KE.05` is "Nairobi County", `NG.05` is "Lagos" — while `name` stays current, giving both halves of what 4.0.0 traded away. `VE.25` now reads `name` "Distrito Capital" and `englishname` "Distrito Federal".
+- `historicnames` on admin1 records, in the same per-language shape as `alternatenames`, holding names the source marks with `isHistoric`. 140 of the 3865 divisions have any, e. g. `AU.08`'s "Swan River Colony". They are separated rather than dropped so a consumer can choose; note that GeoNames flags the column sparsely, so an unflagged name is not evidence that it is current.
+- `get_admin1_names()`, a division's `name` plus its alternate names as a flat deduplicated list, name first, optionally restricted to given languages, the counterpart of `get_country_names()`. Untagged names and abbreviations are always included, whatever `languages` says, because neither key is a language. Pass `historic=True` to append the superseded names.
+
+### Changed
+
+- **Breaking:** admin1 alternate names are built from `alternateNamesV2.txt` instead of the `alternatenames` column of `allCountries.txt`, and are grouped by ISO-639 language code rather than flat, matching the shape country records have had since 4.0.0. `admin1['NL.11']['alternatenames']` is now `{'': [...], 'en': ['South Holland'], 'nl': ['Zuid-Holland'], 'fy': ['Súd-Hollân'], 'abbr': ['zh']}`; use `get_admin1_names()` for a flat list.
+
+  Only the languages of the division's own country, from the `Languages` column of `countryInfo.txt`, plus English, are kept, along with untagged names and abbreviations. Reference code rows (`link`, `wkdt`, `post`, `iata`, `icao`, `faac`, `unlc`, `tcid`, `phon`, `piny`) are excluded as they already were for countries.
+
+  This fixes a class of wrong name. The `allCountries` column is untagged and also holds GeoNames' ASCII romanisation of every language it has a name in, and those romanisations collide across languages: Καμπάλα is Greek both for Azerbaijan's Qabala Rayon and for Uganda's capital, so `AZ.38` carried a literal "Kampala" that exists nowhere in GeoNames for that division, and a country attribution scorer read every mention of Kampala as a vote for Azerbaijan. The same column gave `AZ.38` the machine romanisations "Gabalayi srjan" (Armenian), "K'vepele rajon" (Lezgian) and "Gabalinskij rajon" (Russian), so filtering the list to ASCII to approximate "Latin-script names" returned exactly those and lost the native-script name. Armenian and Russian are Azerbaijan's own languages and are kept, in their own scripts; Lezgian and Greek are not and are dropped.
+
+  Division records hold 25,526 names where the old column held 210,719, and `admin1.json.gz` drops from 1.5 MB to 0.2 MB. The reduction is a side effect: the point is that the removed names were machine transliterations of languages the division is not written in. City alternate names are unchanged in this release and still come from the dumps' own column.
+
+- Building the admin1 data now streams `alternateNamesV2.txt` in addition to `allCountries.txt` and reads `countryInfo.txt` for the language lists. Both files were already downloaded for other datasets, so `./bin/download_data.py` is unchanged.
+
+
 ### Added
 
 - Administrative divisions. `get_admin1_codes()` and `get_admin2_codes()` return first- and second-level divisions keyed by the composite codes `<countrycode>.<admin1code>` (e. g. `US.CA`) and `<countrycode>.<admin1code>.<admin2code>` (e. g. `NL.11.0599`). City records now carry `admin2code` alongside `admin1code`, completing the key, and `get_admin1_by_city()` / `get_admin2_by_city()` resolve a city's division directly, returning `None` when its codes are missing or absent from the division dataset.

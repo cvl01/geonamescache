@@ -54,9 +54,10 @@ This function returns a list of city records that match the given `NAME`.
 * By default the search is case insensitive, it can be made case sensitive by changing `case_sensitive` to True.
 * By default the search is contains, it can be made exact equality by changing `contains_search` to False.
 
-To get a country's names in every language, or a few of them:
+To get a country's or a division's names in every language, or a few of them:
 
 * get\_country\_names(country, languages=None)
+* get\_admin1\_names(admin1, languages=None, historic=False)
 
 To resolve the administrative division a city belongs to, use:
 
@@ -188,12 +189,51 @@ Pass `attribute='name'` to search the primary name instead, which finds the US R
 
 First-level administrative divisions (states, provinces, regions), 3865 records keyed by the composite code `<countrycode>.<admin1code>`, for example `US.CA` for California or `NL.11` for South Holland.
 
-    >>> gc.get_admin1_codes()['NL.11']['name']
-    'Provincie Zuid-Holland'
-    >>> 'South Holland' in gc.get_admin1_codes()['NL.11']['alternatenames']
-    True
+    >>> gc.get_admin1_codes()['NL.11']
+    {
+        'asciiname': 'Provincie Zuid-Holland',
+        'geonameid': 2743698,
+        'name': 'Provincie Zuid-Holland',
+        'englishname': 'South Holland',
+        'alternatenames': {
+            '': ['Zuid-Holland', 'Sudholland', 'Provincie Zuid-Holland', 'South Holland'],
+            'en': ['South Holland'],
+            'fy': ['Súd-Hollân'],
+            'nl': ['Zuid-Holland'],
+            'abbr': ['zh']
+        },
+        'historicnames': {}
+    }
 
-`name` and `asciiname` come from the ADM1 records in the GeoNames `allCountries` dataset, so they are the current official name and often local-language. The English form, where one exists, is in `alternatenames`. The older `admin1CodesASCII.txt` dataset names divisions after their preferred English alternate name, which upstream lets go stale, e. g. `VE.25` is still "Distrito Federal" there years after the rename to "Distrito Capital".
+`name` and `asciiname` come from the ADM1 records in the GeoNames `allCountries` dataset, so they are the current official name and often local-language. The older `admin1CodesASCII.txt` dataset names divisions after their preferred English alternate name, which upstream lets go stale, e. g. `VE.25` is still "Distrito Federal" there years after the rename to "Distrito Capital".
+
+`englishname` gives that English form back, without the staleness, for the 3381 divisions that have one and as `''` for the rest. It is the preferred `en` alternate name, which is what upstream derives `admin1CodesASCII.txt` from in the first place, so it reproduces the old names while `name` stays current:
+
+    >>> gc.get_admin1_codes()['VE.25']['name']
+    'Distrito Capital'
+    >>> gc.get_admin1_codes()['VE.25']['englishname']
+    'Distrito Federal'
+
+`alternatenames` holds the division's other names grouped by ISO-639 language code, with the preferred name of each language first, and `historicnames` holds the same for names the source marks as superseded. Only the languages of the division's **own country** (from the `Languages` column of `countryInfo.txt`) plus English are kept, along with untagged names and abbreviations. Rows that are reference codes rather than names (`link`, `wkdt`, `post`, `iata`, `icao`, `faac`, `unlc`, `tcid`, `phon`, `piny`) are excluded.
+
+The language restriction matters because the untagged `alternatenames` column of `allCountries` — which this used to be built from — also holds GeoNames' ASCII romanisation of every language it has a name in, and those collide. The Greek for Azerbaijan's Qabala Rayon, Καμπάλα, is also the Greek for Uganda's capital, and romanised to a literal "Kampala" on the division. Reading the language-tagged source keeps Armenian and Russian, which Azerbaijan speaks, in their own scripts instead of as "Gabalayi srjan" and "Gabalinskij rajon".
+
+### get_admin1_names()
+
+A division's `name` plus its alternate names, as one deduplicated list with the name first, the counterpart of `get_country_names()`:
+
+    >>> gc.get_admin1_names(gc.get_admin1_codes()['CD.11'])[:4]
+    ['Province du Nord-Kivu', 'Nord-Kivu', 'Sous-Région du Nord-Kivu', 'North Kivu']
+
+Pass `languages` to take only some of them. Untagged names and abbreviations are always included, whatever `languages` says, because neither key is a language:
+
+    >>> gc.get_admin1_names(gc.get_admin1_codes()['NL.11'], languages=('en',))
+    ['Provincie Zuid-Holland', 'Zuid-Holland', 'Sudholland', 'South Holland', 'zh']
+
+Pass `historic=True` to append superseded names. They are out by default because a historic name can now belong to somewhere else. Note that GeoNames flags the column sparsely — only 140 of the 3865 divisions have any — so an unflagged name is not evidence that a name is current:
+
+    >>> 'Swan River Colony' in gc.get_admin1_names(gc.get_admin1_codes()['AU.08'], historic=True)
+    True
 
 ### get_admin2_codes()
 

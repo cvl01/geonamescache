@@ -15,8 +15,80 @@ def test_get_admin1_codes():
         assert geonameid == admin1[key]['geonameid']
 
 
-def test_admin1_carries_alternate_names():
-    assert 'South Holland' in gc.get_admin1_codes()['NL.11']['alternatenames']
+def test_admin1_alternate_names_are_grouped_by_language():
+    dutch = gc.get_admin1_codes()['NL.11']['alternatenames']
+    assert 'South Holland' in dutch['en']
+    assert 'Zuid-Holland' in dutch['nl']
+    assert 'Súd-Hollân' in dutch['fy']
+
+
+def test_admin1_alternate_names_exclude_foreign_languages():
+    # Regression: names used to come from the untagged `alternatenames` column of
+    # allCountries, which mixes in GeoNames' ASCII romanisation of every language it
+    # holds. The Greek name for Qabala Rayon, Καμπάλα, romanises to a literal "Kampala",
+    # so a scorer matching Uganda's capital in text voted for Azerbaijan.
+    qabala = gc.get_admin1_codes()['AZ.38']
+    assert 'Kampala' not in gc.get_admin1_names(qabala, historic=True)
+    assert 'el' not in qabala['alternatenames']
+    # Armenian is one of Azerbaijan's languages, so it stays, in its own script rather
+    # than as the "Gabalayi srjan" romanisation.
+    assert 'Գաբալայի շրջան' in qabala['alternatenames']['hy']
+
+
+def test_admin1_alternate_names_exclude_reference_codes():
+    languages = {lang for a in gc.get_admin1_codes().values() for lang in a['alternatenames']}
+    assert not languages & {'link', 'wkdt', 'post', 'iata', 'icao', 'unlc', 'phon', 'piny'}
+
+
+def test_admin1_englishname():
+    # The English form the older admin1CodesASCII.txt named each division after, which
+    # `name` no longer carries since it comes from the current allCountries ADM1 row.
+    for key, name, english in (
+        ('CD.11', 'Province du Nord-Kivu', 'North Kivu'),
+        ('NL.11', 'Provincie Zuid-Holland', 'South Holland'),
+        ('KE.05', 'Nairobi', 'Nairobi County'),
+        ('NG.05', 'Lagos State', 'Lagos'),
+    ):
+        admin1 = gc.get_admin1_codes()[key]
+        assert admin1['name'] == name
+        assert admin1['englishname'] == english
+
+
+def test_admin1_englishname_is_empty_when_there_is_no_english_row():
+    admin1 = gc.get_admin1_codes()
+    missing = [a for a in admin1.values() if not a['englishname']]
+    assert missing
+    assert all(a['alternatenames'].get('en', []) == [] for a in missing)
+
+
+def test_get_admin1_names_puts_the_name_first_and_deduplicates():
+    names = gc.get_admin1_names(gc.get_admin1_codes()['NG.11'])
+    assert names[0] == 'Federal Capital Territory'
+    assert len(names) == len(set(names))
+    assert 'FCT' in names
+
+
+def test_get_admin1_names_can_select_languages():
+    # VE.25 renamed from Distrito Federal to Distrito Capital; both Spanish forms are
+    # current in the source, so both must resolve.
+    names = gc.get_admin1_names(gc.get_admin1_codes()['VE.25'], languages=('es',))
+    assert 'Distrito Capital' in names
+    assert 'Distrito Federal' in names
+
+
+def test_get_admin1_names_always_includes_untagged_names_and_abbreviations():
+    # Neither key is a language, so selecting languages must not drop them.
+    names = gc.get_admin1_names(gc.get_admin1_codes()['NL.11'], languages=('en',))
+    assert 'Sudholland' in names  # untagged
+    assert 'zh' in names  # abbr, the Dutch abbreviation for Zuid-Holland
+    assert 'Súd-Hollân' not in names  # fy, not selected
+
+
+def test_get_admin1_names_historic_is_opt_in():
+    western_australia = gc.get_admin1_codes()['AU.08']
+    assert 'Swan River Colony' in western_australia['historicnames']['']
+    assert 'Swan River Colony' not in gc.get_admin1_names(western_australia)
+    assert 'Swan River Colony' in gc.get_admin1_names(western_australia, historic=True)
 
 
 def test_admin1_code_resolves_city_reference():

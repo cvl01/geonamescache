@@ -1,5 +1,5 @@
 __title__ = 'geonamescache'
-__version__ = '4.0.0'
+__version__ = '5.0.0'
 __author__ = 'Ramiro Gómez'
 __license__ = 'MIT'
 
@@ -31,6 +31,33 @@ from geonamescache.types import (
 )
 
 TDict = TypeVar('TDict', bound=Mapping[str, Any])
+
+# Alternate name keys on a division that are not a language, and so are never filtered
+# out: the empty string for untagged names, `abbr` for abbreviations such as `NL.11`'s
+# "zh" for Zuid-Holland. Country records predate `abbr` being treated this way and keep
+# it selectable like any other key.
+AGNOSTIC_KEYS = ('', 'abbr')
+
+
+def _flatten(
+    name: str,
+    by_language: Mapping[str, list[str]],
+    languages: Iterable[str] | None,
+    always: tuple[str, ...],
+) -> list[str]:
+    """*name* followed by the selected language buckets, deduplicated, empties dropped.
+
+    *always* names the buckets included whatever *languages* says, because their key is
+    not a language: the empty string for untagged names, `abbr` for abbreviations.
+    """
+    wanted = list(by_language.keys() if languages is None else languages)
+    for key in reversed(always):
+        if key not in wanted:
+            wanted.insert(0, key)
+    names = [name]
+    for language in wanted:
+        names.extend(by_language.get(language, []))
+    return [n for n in dict.fromkeys(names) if n]
 
 
 class GeonamesCache:
@@ -135,14 +162,30 @@ class GeonamesCache:
         Netherlands' `name` is "The Netherlands" and its `en` names do not include the bare
         "Netherlands", which sits under that key.
         """
-        by_language = country['alternatenames']
-        wanted = list(by_language.keys() if languages is None else languages)
-        if '' not in wanted:
-            wanted.insert(0, '')
-        names = [country['name']]
-        for language in wanted:
-            names.extend(by_language.get(language, []))
-        return list(dict.fromkeys(names))
+        return _flatten(country['name'], country['alternatenames'], languages, ('',))
+
+    def get_admin1_names(
+        self, admin1: Admin1, *, languages: Iterable[str] | None = None, historic: bool = False
+    ) -> list[str]:
+        """The division's `name` plus its alternate names, deduplicated, name first.
+
+        Same shape and rules as `get_country_names()`. Unlike countries, a division only
+        carries names in the languages of its own country plus English, so passing
+        *languages* narrows an already narrow set — mostly useful to take just `en`.
+        Untagged names and abbreviations are always included, whatever *languages* says,
+        so `languages=('en',)` on `NL.11` still yields "zh", the Dutch abbreviation.
+
+        Set *historic* to append names the source marks as superseded, e. g. `AU.08`'s
+        "Swan River Colony" for what is now the State of Western Australia. They are kept
+        out by default because a historic name can now belong to somewhere else entirely.
+        Only 140 of the 3865 divisions have any: GeoNames flags the column sparsely, so
+        an unflagged name is not evidence that the name is current.
+        """
+        names = _flatten(admin1['name'], admin1['alternatenames'], languages, AGNOSTIC_KEYS)
+        if historic:
+            extra = _flatten('', admin1['historicnames'], languages, AGNOSTIC_KEYS)
+            names += [n for n in extra if n not in names]
+        return names
 
     def get_us_states_by_names(self) -> dict[USStateName, USState]:
         return self.get_dataset_by_key(self.get_us_states(), 'name')

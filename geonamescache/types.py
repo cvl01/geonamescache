@@ -181,9 +181,11 @@ class Continent(TypedDict):
 
 
 class Admin1(TypedDict):
-    alternatenames: list[str]
+    alternatenames: dict[str, list[str]]
     asciiname: str
+    englishname: str
     geonameid: int
+    historicnames: dict[str, list[str]]
     name: str
 
 
