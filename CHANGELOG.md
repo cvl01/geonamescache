@@ -8,9 +8,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 <!-- insertion marker -->
 ## [Unreleased]
 
-## [5.0.0](https://github.com/yaph/geonamescache/releases/tag/5.0.0) - 2026-09-10
+## [4.1.0](https://github.com/yaph/geonamescache/releases/tag/4.1.0) - 2026-09-10
 
-<small>[Compare with 4.0.0](https://github.com/yaph/geonamescache/compare/4.0.0...5.0.0)</small>
+<small>[Compare with 4.0.0](https://github.com/yaph/geonamescache/compare/4.0.0...4.1.0)</small>
 
 ### Added
 

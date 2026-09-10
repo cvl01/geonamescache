@@ -105,6 +105,12 @@ dependencies = []
 [tool.ruff.lint]
 ignore = ["T201", "DTZ005", "S501"]
 
+[tool.ruff.lint.extend-per-file-ignores]
+# bin/ holds standalone data build scripts, run by path as ./bin/admin1.py rather than
+# imported, so Python puts bin/ on sys.path itself and a helper module next to them is
+# importable without the directory being a package. An __init__.py would claim otherwise.
+"bin/*" = ["INP001"]
+
 [tool.ruff.format]
 quote-style = "preserve"
 skip-magic-trailing-comma = true
