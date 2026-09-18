@@ -61,7 +61,7 @@ def _flatten(
 
 
 def _record_names(
-    record: Mapping[str, Any], languages: Iterable[str] | None, historic: bool
+    record: Mapping[str, Any], languages: Iterable[str] | None, *, historic: bool
 ) -> list[str]:
     """A division's or city's `name` plus its alternate names, deduplicated, name first."""
     names = _flatten(record['name'], record['alternatenames'], languages, AGNOSTIC_KEYS)
@@ -197,7 +197,7 @@ class GeonamesCache:
         Only 140 of the 3865 divisions have any: GeoNames flags the column sparsely, so
         an unflagged name is not evidence that the name is current.
         """
-        return _record_names(admin1, languages, historic)
+        return _record_names(admin1, languages, historic=historic)
 
     def get_us_states_by_names(self) -> dict[USStateName, USState]:
         return self.get_dataset_by_key(self.get_us_states(), 'name')
@@ -238,7 +238,7 @@ class GeonamesCache:
         always included whatever *languages* says, and *historic* appends names the
         source marks as superseded, which can now belong to somewhere else.
         """
-        return _record_names(city, languages, historic)
+        return _record_names(city, languages, historic=historic)
 
     def get_us_counties(self) -> list[USCounty]:
         if self.us_counties is None:

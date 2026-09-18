@@ -69,6 +69,11 @@ jobs:
         GEONAMES_USER: ${{ secrets.GEONAMES_USER }}
       run: hatch run geonamescache-dev:make json
 
+    # Static analysis and tests gate the release: a failure here fails the job, so the
+    # build and upload steps below never run and the release keeps its old assets.
+    - name: Run static analysis
+      run: hatch check code
+
     - name: Run tests
       run: hatch test --randomize --retries 2 --retry-delay 1
 

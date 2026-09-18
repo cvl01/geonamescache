@@ -20,9 +20,17 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: true
+      # The package is pure Python, so the interpreter version is what can break it
+      # and the OS mostly cannot. Linux covers the supported range; macOS and Windows
+      # run the newest only, to catch the path and file handling the build hook does.
       matrix:
-        os: [windows-latest, macos-latest, ubuntu-latest]
+        os: [ubuntu-latest]
         python-version: ['3.10', '3.11', '3.12']
+        include:
+          - os: macos-latest
+            python-version: '3.12'
+          - os: windows-latest
+            python-version: '3.12'
 
     steps:
     - uses: actions/checkout@v5

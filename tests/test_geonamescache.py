@@ -339,11 +339,15 @@ def test_get_city_names():
 def test_search_cities_index_matches_a_scan():
     # The exact, case insensitive path is answered from an index; every other combination
     # scans. They must agree on membership, though not on order.
+    def values(city, attribute):
+        value = city[attribute]
+        return [v for bucket in value.values() for v in bucket] if isinstance(value, dict) else [value]
+
     for query, attribute in (('London', 'name'), ('London', 'alternatenames'), ('NL', 'countrycode')):
         indexed = gc.search_cities(query, attribute, contains_search=False)
         scanned = [
             c for c in gc.get_cities().values()
-            if query.casefold() in [v.casefold() for v in gc._city_values(c, attribute)]
+            if query.casefold() in [v.casefold() for v in values(c, attribute)]
         ]
         assert sorted(c['geonameid'] for c in indexed) == sorted(c['geonameid'] for c in scanned)
 
