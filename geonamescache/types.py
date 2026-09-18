@@ -195,6 +195,8 @@ class Admin1(TypedDict):
     englishname: str
     geonameid: int
     historicnames: dict[str, list[str]]
+    latitude: float
+    longitude: float
     name: str
 
 
@@ -207,6 +209,8 @@ class Admin2(TypedDict):
     englishname: str
     geonameid: int
     historicnames: dict[str, list[str]]
+    latitude: float
+    longitude: float
     name: str
 
 

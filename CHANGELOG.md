@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 <!-- insertion marker -->
 ## [Unreleased]
 
+## [5.2.0](https://github.com/cvl01/geonamescache/releases/tag/5.2.0) - 2026-09-18
+
+<small>[Compare with 5.1.0](https://github.com/cvl01/geonamescache/compare/5.1.0...5.2.0)</small>
+
+### Added
+
+- `latitude` and `longitude` on admin1 and admin2 records. Every one of the 3,865 ADM1 and 47,592 ADM2 rows in `allCountries.txt` carries a coordinate and the build was simply not reading columns 4 and 5, so a consumer that wanted to place a division had to invent something — typically the largest city inside it, which is not a centroid and moves whenever upstream edits a population. 14,001 of the ADM2 units (29%) have no city above the default population threshold at all, so that substitute produced nothing for them and they came back unplaceable.
+
+
 ## [5.1.0](https://github.com/cvl01/geonamescache/releases/tag/5.1.0) - 2026-09-18
 
 <small>[Compare with 5.0.0](https://github.com/cvl01/geonamescache/compare/5.0.0...5.1.0)</small>

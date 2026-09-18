@@ -45,6 +45,7 @@ with p_all.open(encoding='utf-8') as fh:
             continue
 
         geonameid, name, asciiname = record[0], record[1], record[2]
+        latitude, longitude = record[4], record[5]
         countrycode, admin1code = record[8], record[COL_ADMIN1CODE]
 
         # required because used as key
@@ -56,6 +57,8 @@ with p_all.open(encoding='utf-8') as fh:
             'asciiname': asciiname,
             'countrycode': countrycode,
             'geonameid': int(geonameid) if geonameid else 0,
+            'latitude': float(latitude),
+            'longitude': float(longitude),
             'name': name,
         }
         country_by_id[geonameid] = countrycode

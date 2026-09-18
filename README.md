@@ -284,6 +284,8 @@ Since 5.0 these are built from the `ADM2` rows of `allCountries.txt` rather than
         'asciiname': 'Rotterdam',
         'countrycode': 'NL',
         'geonameid': 2747890,
+        'latitude': 51.9225,
+        'longitude': 4.47917,
         'name': 'Rotterdam',
         'englishname': '',
         'alternatenames': {...},

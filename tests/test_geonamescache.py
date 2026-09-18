@@ -496,3 +496,18 @@ def test_search_cities_scopes_by_country_and_parent():
     for code in ('08', 'EC.08'):
         assert gc.search_cities('Santa Rosa', 'name', countrycode='EC', admin1code=code, contains_search=False) == in_ecuador
     assert gc.search_cities('Santa Rosa', 'name', countrycode='EC', admin1code='EC.19', contains_search=False) == []
+
+
+def test_admin_records_carry_coordinates():
+    # Every ADM row in allCountries has one; the build used to drop columns 4 and 5, so a
+    # caller had to substitute the largest city inside the unit, which 29% of ADM2 lack.
+    choco = gc.get_admin1_codes()['CO.11']
+    assert choco['latitude'] == 6.0
+    assert choco['longitude'] == -77.0
+    darien = gc.get_admin2_codes()['CO.11.27150']
+    assert darien['latitude'] == 7.03639
+    assert darien['longitude'] == -76.95222
+    # `and d['longitude']` would be wrong here: 0.0 is the equator, not a missing value.
+    assert all(isinstance(d['latitude'], float) for d in gc.get_admin1_codes().values())
+    placed = sum(1 for d in gc.get_admin2_codes().values() if isinstance(d['latitude'], float))
+    assert placed == len(gc.get_admin2_codes())
