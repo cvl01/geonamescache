@@ -370,3 +370,57 @@ def test_city_name_cache_is_not_shared_between_instances():
     small_hits = small.get_cities_by_name('Springfield')
     large_hits = large.get_cities_by_name('Springfield')
     assert len(large_hits) > len(small_hits)
+
+
+def test_admin_records_carry_their_code_parts():
+    # Without these the composite key has to be split by the caller, which is what
+    # made a country- or parent-scoped search impossible to express.
+    assert gc.get_admin1_codes()['CO.11']['countrycode'] == 'CO'
+    assert gc.get_admin1_codes()['CO.11']['admin1code'] == '11'
+    darien = gc.get_admin2_codes()['CO.11.27150']
+    assert (darien['countrycode'], darien['admin1code'], darien['admin2code']) == ('CO', '11', '27150')
+
+
+def test_admin2_records_have_alternate_names():
+    # They had none at all before: admin2Codes.txt carries a code, a name and an id.
+    akoko = gc.get_admin2_codes()['NG.48.29003']
+    assert 'Akoko South-East' in akoko['alternatenames']['']
+    assert sum(1 for d in gc.get_admin2_codes().values() if d['alternatenames']) > 25000
+
+
+def test_search_admin2_scopes_by_country_and_parent():
+    everywhere = gc.search_admin2('Santa Rosa')
+    in_colombia = gc.search_admin2('Santa Rosa', countrycode='CO')
+    assert len(everywhere) > len(in_colombia) > 0
+    assert all(d['countrycode'] == 'CO' for d in in_colombia)
+    assert gc.search_admin2('Santa Rosa', countrycode='CO', admin1code='CO.11') == []
+
+
+def test_search_admin2_accepts_either_admin1_code_form():
+    bare = gc.search_admin2('Akoko South East', countrycode='NG', admin1code='48')
+    composite = gc.search_admin2('Akoko South East', countrycode='NG', admin1code='NG.48')
+    assert bare == composite == [gc.get_admin2_codes()['NG.48.29003']]
+
+
+def test_search_admin2_finds_a_division_by_its_alternate_name():
+    assert gc.search_admin2('Akoko South-East', countrycode='NG')[0]['admin2code'] == '29003'
+
+
+def test_search_admin1_matches_names_and_is_exact_by_default():
+    assert [d['admin1code'] for d in gc.search_admin1('Chocó', countrycode='CO')] == ['11']
+    # Exact by default: a substring search on a common word settles nothing.
+    assert gc.search_admin1('Choc', countrycode='CO') == []
+    assert gc.search_admin1('Choc', countrycode='CO', contains_search=True)
+
+
+def test_search_admin1_historic_names_are_opt_in():
+    # Vargas was renamed La Guaira in 2019; a 2015 report still says Vargas.
+    assert gc.search_admin1('Vargas', countrycode='VE') == []
+    assert [d['admin1code'] for d in gc.search_admin1('Vargas', countrycode='VE', historic=True)] == ['26']
+
+
+def test_search_cities_scopes_by_country_and_parent():
+    everywhere = gc.search_cities('Santa Rosa', 'name', contains_search=False)
+    in_ecuador = gc.search_cities('Santa Rosa', 'name', countrycode='EC', contains_search=False)
+    assert len(everywhere) > len(in_ecuador) > 0
+    assert all(c['countrycode'] == 'EC' for c in in_ecuador)

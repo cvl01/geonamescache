@@ -8,6 +8,28 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 <!-- insertion marker -->
 ## [Unreleased]
 
+## [5.0.0](https://github.com/cvl01/geonamescache/releases/tag/5.0.0) - 2026-09-18
+
+<small>[Compare with 4.1.0](https://github.com/cvl01/geonamescache/compare/4.1.0...5.0.0)</small>
+
+### Added
+
+- `search_admin1()` and `search_admin2()`, which take a `countrycode` and — for admin2 — an `admin1code` to restrict the search before names are compared. Place names are not unique: "Santa Rosa" names eight second-level divisions worldwide, so an unscoped answer settles nothing, and a caller that had to post-filter needed the code parts the records did not carry. `admin1code` accepts the bare code (`11`) or the composite one (`CO.11`). Both search `name`, `asciiname`, `englishname` and every alternate name, and both are **exact** by default, unlike `search_cities()`: a substring search on a word as common as "north" returns hundreds of divisions. Pass `historic=True` to also match superseded names, off by default because a historic name can now belong somewhere else.
+- `countrycode` and `admin1code` filters on `search_cities()`, applied before the attribute comparison rather than after, so a scoped search no longer scans every one of the up to 235,156 city records to completion.
+- `countrycode` and `admin1code` on admin1 records, and `countrycode`, `admin1code` and `admin2code` on admin2 records. The composite code lived only in the dict key, so anything working from a record rather than a key had to split the key by hand.
+- `alternatenames`, `historicnames` and `englishname` on admin2 records, in the same per-language shape admin1 records have had since 4.1.0. 30,771 of the 47,592 divisions (65%) have at least one alternate name, and it is often the only form a reader would write: `NG.48.29003` is stored as "Akoko South East" and reported as "Akoko South-East". `admin2.json.gz` grows from 0.8 MB to 1.7 MB.
+
+### Changed
+
+- **Breaking:** admin2 records are built from the `ADM2` rows of `allCountries.txt` instead of `admin2Codes.txt`. Unlike the equivalent admin1 switch in 4.0.0, this one is additive in practice — all 47,592 keys and all 47,592 names are byte-identical to what `admin2Codes.txt` produced — but the record shape is wider, so the major version reflects the `Admin2` TypedDict changing. Reading `allCountries` is what makes the alternate-name enrichment possible, since `admin2Codes.txt` carries no geonameid-joinable name data beyond the one name.
+- Building the admin2 data now streams `alternateNamesV2.txt` and reads `countryInfo.txt`, as admin1 already did. Both were already downloaded, so `./bin/download_data.py` is unchanged.
+
+### Fixed
+
+- The build hook no longer destroys the real `.gitignore` when a build is retried after failing partway. `initialize` moved `.gitignore` to `.gitignore.tmp`, and a build that died before `finalize` left it there; the next `initialize` deleted that backup and then backed up the already-cleaned file, losing the original permanently. It now restores from an existing backup first.
+- The package version is `5.0.0`, which is what the 4.1.0-era release commits and downstream documentation already claimed. `__version__` said `4.1.0`, so the release workflow's tag-versus-`hatch version` check would have rejected a `5.0.0` tag.
+
+
 ## [4.1.0](https://github.com/yaph/geonamescache/releases/tag/4.1.0) - 2026-09-10
 
 <small>[Compare with 4.0.0](https://github.com/yaph/geonamescache/compare/4.0.0...4.1.0)</small>

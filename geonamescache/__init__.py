@@ -1,5 +1,5 @@
 __title__ = 'geonamescache'
-__version__ = '4.1.0'
+__version__ = '5.0.0'
 __author__ = 'Ramiro Gómez'
 __license__ = 'MIT'
 
@@ -74,6 +74,8 @@ class GeonamesCache:
         self.min_city_population = min_city_population
         # Per instance, because it indexes one particular cities dataset.
         self.cities_by_names: dict[str, list[City]] | None = None
+        # Keyed by (admin level, whether historic names are included).
+        self._admin_by_name: dict[tuple[int, bool], dict[str, list[Any]]] = {}
 
     def get_dataset_by_key(self, dataset: dict[Any, TDict], key: str) -> dict[Any, TDict]:
         return {d[key]: d for c, d in list(dataset.items())}
@@ -226,13 +228,27 @@ class GeonamesCache:
         query: str,
         attribute: CitySearchAttribute = 'alternatenames',
         *,
+        countrycode: str | None = None,
+        admin1code: str | None = None,
         case_sensitive: bool = False,
         contains_search: bool = True,
     ) -> list[City]:
-        """Search all city records and return list of records, that match query for given attribute."""
+        """Search all city records and return list of records, that match query for given attribute.
+
+        *countrycode* and *admin1code* restrict the search before the name comparison, which
+        is what makes a common toponym usable: "Santa Rosa" is hundreds of places worldwide
+        and one inside a given province. *admin1code* takes the bare code (`11`) or the
+        composite one (`CO.11`), and is ignored unless *countrycode* is given too.
+        """
+        countrycode = countrycode.upper() if countrycode else None
+        admin1code = admin1code.rsplit('.', 1)[-1] if admin1code else None
         results = []
         query = (case_sensitive and query) or query.casefold()
         for record in self.get_cities().values():
+            if countrycode and record['countrycode'] != countrycode:
+                continue
+            if countrycode and admin1code and record['admin1code'] != admin1code:
+                continue
             record_value = record[attribute]
             if contains_search:
                 if isinstance(record_value, list):
@@ -249,6 +265,106 @@ class GeonamesCache:
             elif query == ((case_sensitive and record_value) or record_value.casefold()):
                 results.append(record)
         return results
+
+    def search_admin1(
+        self,
+        query: str,
+        *,
+        countrycode: str | None = None,
+        case_sensitive: bool = False,
+        contains_search: bool = False,
+        historic: bool = False,
+    ) -> list[Admin1]:
+        """First-level divisions whose name, asciiname, englishname or alternate name matches.
+
+        See `search_admin2()` for the shared rules.
+        """
+        return self._search_admin(1, query, countrycode, None, case_sensitive, contains_search, historic)
+
+    def search_admin2(
+        self,
+        query: str,
+        *,
+        countrycode: str | None = None,
+        admin1code: str | None = None,
+        case_sensitive: bool = False,
+        contains_search: bool = False,
+        historic: bool = False,
+    ) -> list[Admin2]:
+        """Second-level divisions whose name, asciiname, englishname or alternate name matches.
+
+        *countrycode* and *admin1code* restrict the search to one country and one of its
+        first-level divisions, which is the difference between a usable answer and every
+        namesake on earth — "Santa Rosa" names dozens of divisions. *admin1code* takes the
+        bare code (`11`) or the composite one (`CO.11`), and is ignored without *countrycode*.
+
+        Matching is exact by default, unlike `search_cities()`: a substring search on a word
+        as common as "north" returns hundreds of divisions and settles nothing. *historic*
+        adds names the source marks as superseded, which can now belong somewhere else.
+        """
+        return self._search_admin(
+            2, query, countrycode, admin1code, case_sensitive, contains_search, historic
+        )
+
+    def _search_admin(
+        self,
+        level: int,
+        query: str,
+        countrycode: str | None,
+        admin1code: str | None,
+        case_sensitive: bool,
+        contains_search: bool,
+        historic: bool,
+    ) -> Any:
+        countrycode = countrycode.upper() if countrycode else None
+        admin1code = admin1code.rsplit('.', 1)[-1] if admin1code else None
+
+        def in_scope(record: Mapping[str, Any]) -> bool:
+            if countrycode and record['countrycode'] != countrycode:
+                return False
+            return not (countrycode and admin1code and record['admin1code'] != admin1code)
+
+        if not contains_search and not case_sensitive:
+            index = self._admin_name_index(level, historic)
+            return [r for r in index.get(query.casefold(), []) if in_scope(r)]
+
+        needle = query if case_sensitive else query.casefold()
+        results = []
+        for record in self._admin_records(level).values():
+            if not in_scope(record):
+                continue
+            names = self._admin_names(record, historic=historic)
+            if not case_sensitive:
+                names = [n.casefold() for n in names]
+            if any(needle in n for n in names) if contains_search else needle in names:
+                results.append(record)
+        return results
+
+    def _admin_records(self, level: int) -> dict[str, Any]:
+        return self.get_admin1_codes() if level == 1 else self.get_admin2_codes()  # type: ignore[return-value]
+
+    @staticmethod
+    def _admin_names(record: Mapping[str, Any], *, historic: bool) -> list[str]:
+        """Every name a division should be findable under, in no particular order."""
+        names = [record['name'], record['asciiname'], record.get('englishname') or '']
+        fields = ('alternatenames', 'historicnames') if historic else ('alternatenames',)
+        for field in fields:
+            for bucket in (record.get(field) or {}).values():
+                names.extend(bucket)
+        return [n for n in names if n]
+
+    def _admin_name_index(self, level: int, historic: bool) -> dict[str, list[Any]]:
+        """Casefolded name -> division records. Built once per level, as names are not unique."""
+        index = self._admin_by_name.get((level, historic))
+        if index is None:
+            index = {}
+            for record in self._admin_records(level).values():
+                for name in self._admin_names(record, historic=historic):
+                    bucket = index.setdefault(name.casefold(), [])
+                    if record not in bucket:
+                        bucket.append(record)
+            self._admin_by_name[level, historic] = index
+        return index
 
     @staticmethod
     def _load_data(dataset: str) -> Any:

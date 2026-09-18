@@ -52,7 +52,9 @@ with p_all.open(encoding='utf-8') as fh:
             continue
 
         admin1[f'{countrycode}.{admin1code}'] = {
+            'admin1code': admin1code,
             'asciiname': asciiname,
+            'countrycode': countrycode,
             'geonameid': int(geonameid) if geonameid else 0,
             'name': name,
         }

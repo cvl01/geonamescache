@@ -44,15 +44,19 @@ Currently geonamescache provides the following methods, that return dictionaries
 * get\_us\_counties()
 * get\_timezones()
 
-In addition you can search for cities by name.
+In addition you can search for cities and administrative divisions by name.
 
-* search\_cities(\'NAME\', case\_sensitive=True, contains\_search=True)
+* search\_cities(\'NAME\', countrycode=None, admin1code=None, case\_sensitive=False, contains\_search=True)
+* search\_admin1(\'NAME\', countrycode=None, case\_sensitive=False, contains\_search=False, historic=False)
+* search\_admin2(\'NAME\', countrycode=None, admin1code=None, case\_sensitive=False, contains\_search=False, historic=False)
 
-This function returns a list of city records that match the given `NAME`.
+Each returns a flat list of records matching `NAME`.
 
-* By default the `alternatenames` attribute is searched for matches.
+* `countrycode` and `admin1code` restrict the search before names are compared. Place names are not unique — "Santa Rosa" names eight second-level divisions worldwide — so an unscoped search is rarely the answer you want. `admin1code` takes the bare code (`11`) or the composite one (`CO.11`), and is ignored without a `countrycode`.
+* By default the city search looks at the `alternatenames` attribute; pass `attribute` for another one. The division searches always cover `name`, `asciiname`, `englishname` and every alternate name.
 * By default the search is case insensitive, it can be made case sensitive by changing `case_sensitive` to True.
-* By default the search is contains, it can be made exact equality by changing `contains_search` to False.
+* The city search is a contains search by default; the division searches are **exact** by default, because a substring of a word as common as "north" matches hundreds of divisions. Either can be switched with `contains_search`.
+* `historic=True` also matches names the source marks as superseded — Venezuela's `VE.26` still answers to "Vargas", renamed La Guaira in 2019. Off by default, because a historic name can now belong somewhere else.
 
 To get a country's or a division's names in every language, or a few of them:
 
@@ -239,8 +243,20 @@ Pass `historic=True` to append superseded names. They are out by default because
 
 Second-level administrative divisions (counties, municipalities, districts), 47592 records keyed by `<countrycode>.<admin1code>.<admin2code>`.
 
+Since 5.0 these are built from the `ADM2` rows of `allCountries.txt` rather than `admin2Codes.txt`, which carried only a code, a name and an id. The keys and names are unchanged — all 47592 of them — but each record now also carries its code parts and the same language-keyed `alternatenames` / `historicnames` / `englishname` as an admin1 record. 30771 divisions (65%) have at least one alternate name, which is often the only form a reader would write: `NG.48.29003` is stored as "Akoko South East" and reported as "Akoko South-East".
+
     >>> gc.get_admin2_codes()['NL.11.0599']
-    {'asciiname': 'Rotterdam', 'geonameid': 2747890, 'name': 'Rotterdam'}
+    {
+        'admin1code': '11',
+        'admin2code': '0599',
+        'asciiname': 'Rotterdam',
+        'countrycode': 'NL',
+        'geonameid': 2747890,
+        'name': 'Rotterdam',
+        'englishname': '',
+        'alternatenames': {...},
+        'historicnames': {},
+    }
 
 Note the `geonameid` here is the municipality of Rotterdam (2747890), which is a different place from the city of Rotterdam (2747891).
 
