@@ -64,21 +64,25 @@ def read_alternate_names(
     path: Path,
     country_by_id: dict[str, str],
     languages_by_country: dict[str, frozenset[str]],
+    extra_languages: frozenset[str] = frozenset(),
 ) -> tuple[dict[str, dict[str, list[str]]], dict[str, dict[str, list[str]]]]:
     """Current and historic names for the given ids, as {geonameid: {isolanguage: [name]}}.
 
     Streams alternateNamesV2.txt (~780 MB) once. A row is kept when its isolanguage is
-    language-agnostic, or its base subtag is one of the country's own languages or
-    English; every other language, and every non-name reference code, is dropped.
-    Preferred names come first within each language.
+    language-agnostic, or its base subtag is one of the country's own languages, English,
+    or one of *extra_languages*; every other language, and every non-name reference code,
+    is dropped. Preferred names come first within each language.
 
     *country_by_id* maps the wanted geonameids to their country code and so doubles as
     the set of ids to collect. Ids whose country is unknown keep only the
-    language-agnostic and English rows.
+    language-agnostic rows and the languages kept everywhere.
     """
     current: dict[str, dict[str, list[str]]] = defaultdict(lambda: defaultdict(list))
     historic: dict[str, dict[str, list[str]]] = defaultdict(lambda: defaultdict(list))
-    english_only = frozenset({ENGLISH})
+    kept_everywhere = frozenset({ENGLISH}) | extra_languages
+    spoken_by_country = {
+        code: languages | kept_everywhere for code, languages in languages_by_country.items()
+    }
 
     with path.open(encoding='utf-8') as fh:
         for record in csv.reader(fh, 'excel-tab'):
@@ -92,7 +96,7 @@ def read_alternate_names(
             if not name or isolanguage in NON_NAME_LANGUAGES:
                 continue
             if isolanguage not in LANGUAGE_AGNOSTIC:
-                spoken = languages_by_country.get(country, english_only)
+                spoken = spoken_by_country.get(country, kept_everywhere)
                 if base_language(isolanguage) not in spoken:
                     continue
 

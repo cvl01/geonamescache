@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 <!-- insertion marker -->
 ## [Unreleased]
 
+## [5.1.0](https://github.com/cvl01/geonamescache/releases/tag/5.1.0) - 2026-09-18
+
+<small>[Compare with 5.0.0](https://github.com/cvl01/geonamescache/compare/5.0.0...5.1.0)</small>
+
+### Changed
+
+- City `alternatenames` and `historicnames` now keep Spanish and French for every city, on top of the city's own country's languages and English. 5.0.0 scoped city names to the country that speaks them, which dropped the exonyms a user is most likely to type for a city abroad: "Londres" for London, "Núremberg" for Nuremberg, "Copenhague" for Copenhagen. At the default threshold the name count goes from 111,237 to 119,838 across the same 208 languages, cities with a historic name from 967 to 978, and the bundled city data from 22 MB to 23 MB. Divisions are unchanged and stay scoped to their own country plus English: their names are administrative rather than typed.
+- **`search_cities('Kiev')` returns Kyiv again.** Historic is flagged per language, not per city: upstream marks "Kiev" superseded for English but current and preferred for French, so it is now in `alternatenames['fr']` as well as `historicnames['en']`. `get_city_names(city, languages=('en',))` is what excludes it.
+
 ## [5.0.0](https://github.com/cvl01/geonamescache/releases/tag/5.0.0) - 2026-09-18
 
 <small>[Compare with 4.1.0](https://github.com/cvl01/geonamescache/compare/4.1.0...5.0.0)</small>

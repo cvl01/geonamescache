@@ -163,26 +163,38 @@ A dictionary keyed by geonameid **as a string**, holding 34078 cities at the def
         'admin1code': '11',
         'admin2code': '0599',
         'featurecode': 'PPL',
-        'alternatenames': {'en': ['Rotterdam'], 'nl': ['Rotterdam']},
+        'alternatenames': {
+            'en': ['Rotterdam'],
+            'es': ['Rotterdam', 'Róterdam'],
+            'fr': ['Rotterdam'],
+            'nl': ['Rotterdam']
+        },
         'historicnames': {}
     }
 
-`alternatenames` holds the city's other names grouped by ISO-639 language code, with the preferred name of each language first, and `historicnames` holds the same for names the source marks as superseded. They follow exactly the rules described under [get_admin1_codes()](#get_admin1_codes): only the languages of the city's **own country** plus English are kept, untagged names and abbreviations are always kept, and reference codes such as `iata` or `wkdt` are excluded. 28743 of the 34078 cities at the default threshold have at least one alternate name, across 208 languages, and 967 have a historic name.
+`alternatenames` holds the city's other names grouped by ISO-639 language code, with the preferred name of each language first, and `historicnames` holds the same for names the source marks as superseded. They follow the rules described under [get_admin1_codes()](#get_admin1_codes), with one difference: cities keep the languages of their **own country** plus English, Spanish and French, where divisions keep only their own country's plus English. Untagged names and abbreviations are always kept, and reference codes such as `iata` or `wkdt` are excluded. 28753 of the 34078 cities at the default threshold have at least one alternate name, across 208 languages, and 978 have a historic name.
 
-Since 5.0 these come from `alternateNamesV2.txt` rather than the untagged `alternatenames` column of the cities dumps, which also held GeoNames' ASCII romanisation of every language a place has a name in. Rotterdam's list held 43 entries, 25 of them romanisations such as "Roterdam", "Ratehrdam", "loteleudam" and "rwtrdm", with nothing to say which was which; it now holds the two names the Netherlands and English actually use. Across the default dataset the name count drops from 349573 to 111237, and the bundled city data from 35 MB to 22 MB.
+Spanish and French are kept worldwide because their exonyms are what a user types for a city anywhere: "Londres", "Núremberg", "Copenhague". Division names are administrative rather than typed, so they stay scoped to their own country.
+
+Since 5.0 these come from `alternateNamesV2.txt` rather than the untagged `alternatenames` column of the cities dumps, which also held GeoNames' ASCII romanisation of every language a place has a name in. Rotterdam's list held 43 entries, 25 of them romanisations such as "Roterdam", "Ratehrdam", "loteleudam" and "rwtrdm", with nothing to say which was which; it now holds only the forms Dutch, English, Spanish and French actually use. Across the default dataset the name count drops from 349573 to 119838, and the bundled city data from 35 MB to 23 MB.
 
 `get_city_names()` flattens a record the way `get_admin1_names()` does, name first and deduplicated:
 
     >>> gc.get_city_names(gc.get_cities()['703448'])
-    ['Kyiv', 'Kijów', 'Kijev', 'Киев', 'Киевом', 'Киеву', 'Київ']
+    ['Kyiv', 'Kiev', 'Kijów', 'Kijev', 'Киев', 'Киевом', 'Киеву', 'Київ']
 
     >>> gc.get_city_names(gc.get_cities()['703448'], languages=('uk',))
     ['Kyiv', 'Київ']
 
-The language filter is what makes a renamed city behave. "Kiev" is marked historic upstream, so it is in `historicnames` and not in `alternatenames`, and `search_cities('Kiev')` now returns nothing unless you ask for it:
+Historic names are separated per language, not per city, and "Kiev" shows why: upstream marks it historic for English but current and preferred for French. So it sits in `historicnames['en']` and in `alternatenames['fr']` at once, and both searches find the city:
+
+    >>> [c['name'] for c in gc.search_cities('Kiev')]
+    ['Kyiv']
 
     >>> [c['name'] for c in gc.search_cities('Kiev', 'historicnames', contains_search=False)]
     ['Kyiv']
+
+Pass `languages` to `get_city_names()` to get one language's view instead.
 
 `featurecode` is the GeoNames [feature code](http://www.geonames.org/export/codes.html), which distinguishes a capital (`PPLC`) or an administrative seat (`PPLA` through `PPLA5`) from an ordinary populated place (`PPL`). It is what lets the datasets include capitals below their population threshold, such as Nuuk and Tórshavn. The feature *class* is always `P` in these datasets, so it is not stored. You can search on it:
 

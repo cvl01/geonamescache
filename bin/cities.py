@@ -6,7 +6,7 @@ GeoNames' own ASCII romanisation of every language a place has a name in, so Rot
 carried "Roterdam" and "Ratehrdam" as if they were forms anyone writes. Names are read
 from alternateNamesV2.txt instead, the same way bin/admin1.py builds division names:
 language-keyed, romanisations gone, and restricted to the languages of the city's own
-country plus English.
+country plus the ones kept worldwide.
 
 All four dumps are built in one run, so the ~780 MB alternate names file is streamed
 once for the union of their ids rather than once per dump.
@@ -19,6 +19,13 @@ from pathlib import Path
 from _alternatenames import plain, read_alternate_names, read_country_languages
 
 POPULATIONS = (500, 1000, 5000, 15000)
+
+# Languages kept for every city, on top of its own country's languages and English.
+# Spanish and French exonyms are written far outside the countries that speak them —
+# "Londres", "Núremberg", "Copenhague" — and a city name is what a user types, so
+# scoping them to the city's own country loses lookups that used to work. Divisions
+# stay country-scoped: their names are administrative rather than typed.
+EXTRA_LANGUAGES = frozenset({'es', 'fr'})
 
 # cities dump column indices
 COL_GEONAMEID = 0
@@ -70,7 +77,9 @@ for population, path in p_cities.items():
     datasets[population] = cities
 
 languages_by_country = read_country_languages(p_countryinfo)
-current, historic = read_alternate_names(p_alternate, country_by_id, languages_by_country)
+current, historic = read_alternate_names(
+    p_alternate, country_by_id, languages_by_country, EXTRA_LANGUAGES
+)
 
 for population, cities in datasets.items():
     for geonameid, city in cities.items():

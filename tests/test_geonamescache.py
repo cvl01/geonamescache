@@ -303,9 +303,11 @@ def test_city_alternate_names_are_grouped_by_language():
     assert kyiv['alternatenames']['uk'] == ['Київ']
     assert 'Кием' not in kyiv['alternatenames'].get('ru', [])
     assert 'Kyiv' in kyiv['alternatenames']['en']
-    # "Kiev" is the superseded English name, so it is out of `alternatenames` entirely.
+    # Historic is per language, not per city: "Kiev" is the superseded English name and
+    # at the same time the current preferred French one, so it is in both buckets.
     assert kyiv['historicnames']['en'] == ['Kiev']
-    assert gc.search_cities('Kiev') == []
+    assert kyiv['alternatenames']['fr'][0] == 'Kiev'
+    assert gc.search_cities('Kiev') == [kyiv]
     assert gc.search_cities('Kiev', 'historicnames', contains_search=False) == [kyiv]
 
 
@@ -318,8 +320,18 @@ def test_city_alternate_names_exclude_romanisations_and_foreign_languages():
     assert 'Roterdam' not in flat
     assert 'Ratehrdam' not in flat
     assert 'nl' in rotterdam['alternatenames']
-    # Japanese is not a language of the Netherlands.
+    # Japanese is not a language of the Netherlands, nor one of the worldwide ones.
     assert 'ja' not in rotterdam['alternatenames']
+
+
+def test_city_alternate_names_keep_spanish_and_french_everywhere():
+    # Both are kept whatever the city's country, because their exonyms are what a user
+    # types for a city anywhere. Divisions stay scoped to their own country's languages.
+    assert 'Róterdam' in gc.get_cities()['2747891']['alternatenames']['es']
+    assert gc.get_cities()['2643743']['alternatenames']['es'] == ['Londres']
+    assert 'Núremberg' in gc.get_cities()['2861650']['alternatenames']['es']
+    assert 'Copenhague' in gc.get_cities()['2618425']['alternatenames']['fr']
+    assert 'es' not in gc.get_admin1_codes()['NL.11']['alternatenames']
 
 
 def test_get_city_names():
@@ -327,10 +339,11 @@ def test_get_city_names():
     names = gc.get_city_names(kyiv)
     assert names[0] == 'Kyiv'
     assert 'Київ' in names
-    assert 'Kiev' not in names
     assert names == list(dict.fromkeys(names))
 
-    assert 'Kiev' in gc.get_city_names(kyiv, historic=True)
+    # "Kiev" is historic in English only, so a language filter is what excludes it.
+    assert 'Kiev' not in gc.get_city_names(kyiv, languages=('en', 'uk'))
+    assert 'Kiev' in gc.get_city_names(kyiv, languages=('en',), historic=True)
     assert gc.get_city_names(kyiv, languages=('uk',)) == ['Kyiv', 'Київ']
     # An unknown code contributes nothing rather than raising.
     assert gc.get_city_names(kyiv, languages=('zz',)) == ['Kyiv']
