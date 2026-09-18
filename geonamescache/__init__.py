@@ -279,7 +279,15 @@ class GeonamesCache:
 
         See `search_admin2()` for the shared rules.
         """
-        return self._search_admin(1, query, countrycode, None, case_sensitive, contains_search, historic)
+        return self._search_admin(
+            1,
+            query,
+            countrycode,
+            None,
+            case_sensitive=case_sensitive,
+            contains_search=contains_search,
+            historic=historic,
+        )
 
     def search_admin2(
         self,
@@ -303,7 +311,13 @@ class GeonamesCache:
         adds names the source marks as superseded, which can now belong somewhere else.
         """
         return self._search_admin(
-            2, query, countrycode, admin1code, case_sensitive, contains_search, historic
+            2,
+            query,
+            countrycode,
+            admin1code,
+            case_sensitive=case_sensitive,
+            contains_search=contains_search,
+            historic=historic,
         )
 
     def _search_admin(
@@ -312,6 +326,7 @@ class GeonamesCache:
         query: str,
         countrycode: str | None,
         admin1code: str | None,
+        *,
         case_sensitive: bool,
         contains_search: bool,
         historic: bool,
@@ -325,7 +340,7 @@ class GeonamesCache:
             return not (countrycode and admin1code and record['admin1code'] != admin1code)
 
         if not contains_search and not case_sensitive:
-            index = self._admin_name_index(level, historic)
+            index = self._admin_name_index(level, historic=historic)
             return [r for r in index.get(query.casefold(), []) if in_scope(r)]
 
         needle = query if case_sensitive else query.casefold()
@@ -353,7 +368,7 @@ class GeonamesCache:
                 names.extend(bucket)
         return [n for n in names if n]
 
-    def _admin_name_index(self, level: int, historic: bool) -> dict[str, list[Any]]:
+    def _admin_name_index(self, level: int, *, historic: bool) -> dict[str, list[Any]]:
         """Casefolded name -> division records. Built once per level, as names are not unique."""
         index = self._admin_by_name.get((level, historic))
         if index is None:

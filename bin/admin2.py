@@ -12,11 +12,11 @@ import sys
 from pathlib import Path
 
 from _alternatenames import (
+    ENGLISH,
     base_language,
     plain,
     read_alternate_names,
     read_country_languages,
-    ENGLISH,
 )
 
 # Index of the last allCountries.txt column this reads, and so the minimum column
