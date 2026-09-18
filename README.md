@@ -19,7 +19,7 @@ A simple example:
     gc = geonamescache.GeonamesCache()
     print(gc.get_countries())
 
-The datasets are bundled gzipped and parsed on first use, so the installed package is about 36 MB. Each `GeonamesCache` instance caches every dataset it loads, so keep one instance around rather than creating a new one per lookup.
+The datasets are bundled gzipped and parsed on first use, so the installed package is about 25 MB. Each `GeonamesCache` instance caches every dataset it loads, so keep one instance around rather than creating a new one per lookup.
 
 ## Settings
 
@@ -54,14 +54,16 @@ Each returns a flat list of records matching `NAME`.
 
 * `countrycode` and `admin1code` restrict the search before names are compared. Place names are not unique — "Santa Rosa" names eight second-level divisions worldwide — so an unscoped search is rarely the answer you want. `admin1code` takes the bare code (`11`) or the composite one (`CO.11`), and is ignored without a `countrycode`.
 * By default the city search looks at the `alternatenames` attribute; pass `attribute` for another one. The division searches always cover `name`, `asciiname`, `englishname` and every alternate name.
+* An exact, case insensitive `search_cities()` is answered from an index of every value keyed by country and casefolded value, built once per attribute on first use, so repeated lookups cost a dict access instead of a pass over the dataset. The other combinations still scan, but a `countrycode` narrows the scan to that country's records. Indexed results come out in country order rather than geonameid order.
 * By default the search is case insensitive, it can be made case sensitive by changing `case_sensitive` to True.
 * The city search is a contains search by default; the division searches are **exact** by default, because a substring of a word as common as "north" matches hundreds of divisions. Either can be switched with `contains_search`.
 * `historic=True` also matches names the source marks as superseded — Venezuela's `VE.26` still answers to "Vargas", renamed La Guaira in 2019. Off by default, because a historic name can now belong somewhere else.
 
-To get a country's or a division's names in every language, or a few of them:
+To get a country's, a division's or a city's names in every language, or a few of them:
 
 * get\_country\_names(country, languages=None)
 * get\_admin1\_names(admin1, languages=None, historic=False)
+* get\_city\_names(city, languages=None, historic=False)
 
 To resolve the administrative division a city belongs to, use:
 
@@ -161,8 +163,26 @@ A dictionary keyed by geonameid **as a string**, holding 34078 cities at the def
         'admin1code': '11',
         'admin2code': '0599',
         'featurecode': 'PPL',
-        'alternatenames': ['RTM', 'Ratehrdam', 'Roterdam', ...]
+        'alternatenames': {'en': ['Rotterdam'], 'nl': ['Rotterdam']},
+        'historicnames': {}
     }
+
+`alternatenames` holds the city's other names grouped by ISO-639 language code, with the preferred name of each language first, and `historicnames` holds the same for names the source marks as superseded. They follow exactly the rules described under [get_admin1_codes()](#get_admin1_codes): only the languages of the city's **own country** plus English are kept, untagged names and abbreviations are always kept, and reference codes such as `iata` or `wkdt` are excluded. 28743 of the 34078 cities at the default threshold have at least one alternate name, across 208 languages, and 967 have a historic name.
+
+Since 5.0 these come from `alternateNamesV2.txt` rather than the untagged `alternatenames` column of the cities dumps, which also held GeoNames' ASCII romanisation of every language a place has a name in. Rotterdam's list held 43 entries, 25 of them romanisations such as "Roterdam", "Ratehrdam", "loteleudam" and "rwtrdm", with nothing to say which was which; it now holds the two names the Netherlands and English actually use. Across the default dataset the name count drops from 349573 to 111237, and the bundled city data from 35 MB to 22 MB.
+
+`get_city_names()` flattens a record the way `get_admin1_names()` does, name first and deduplicated:
+
+    >>> gc.get_city_names(gc.get_cities()['703448'])
+    ['Kyiv', 'Kijów', 'Kijev', 'Киев', 'Киевом', 'Киеву', 'Київ']
+
+    >>> gc.get_city_names(gc.get_cities()['703448'], languages=('uk',))
+    ['Kyiv', 'Київ']
+
+The language filter is what makes a renamed city behave. "Kiev" is marked historic upstream, so it is in `historicnames` and not in `alternatenames`, and `search_cities('Kiev')` now returns nothing unless you ask for it:
+
+    >>> [c['name'] for c in gc.search_cities('Kiev', 'historicnames', contains_search=False)]
+    ['Kyiv']
 
 `featurecode` is the GeoNames [feature code](http://www.geonames.org/export/codes.html), which distinguishes a capital (`PPLC`) or an administrative seat (`PPLA` through `PPLA5`) from an ordinary populated place (`PPL`). It is what lets the datasets include capitals below their population threshold, such as Nuuk and Tórshavn. The feature *class* is always `P` in these datasets, so it is not stored. You can search on it:
 

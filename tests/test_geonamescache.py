@@ -294,8 +294,58 @@ def test_cities_in_us_states():
 
 
 def test_search_cities():
-    cities = gc.search_cities('Kiev')
+    cities = gc.search_cities('Kyiv')
     assert len(cities) >= 1
+
+
+def test_city_alternate_names_are_grouped_by_language():
+    kyiv = gc.get_cities()['703448']
+    assert kyiv['alternatenames']['uk'] == ['Київ']
+    assert 'Кием' not in kyiv['alternatenames'].get('ru', [])
+    assert 'Kyiv' in kyiv['alternatenames']['en']
+    # "Kiev" is the superseded English name, so it is out of `alternatenames` entirely.
+    assert kyiv['historicnames']['en'] == ['Kiev']
+    assert gc.search_cities('Kiev') == []
+    assert gc.search_cities('Kiev', 'historicnames', contains_search=False) == [kyiv]
+
+
+def test_city_alternate_names_exclude_romanisations_and_foreign_languages():
+    # Regression: names used to come from the untagged `alternatenames` column of the
+    # cities dumps, which mixes in GeoNames' ASCII romanisation of every language a
+    # place has a name in, so Rotterdam carried "Roterdam" and "Ratehrdam".
+    rotterdam = gc.get_cities()['2747891']
+    flat = [n for bucket in rotterdam['alternatenames'].values() for n in bucket]
+    assert 'Roterdam' not in flat
+    assert 'Ratehrdam' not in flat
+    assert 'nl' in rotterdam['alternatenames']
+    # Japanese is not a language of the Netherlands.
+    assert 'ja' not in rotterdam['alternatenames']
+
+
+def test_get_city_names():
+    kyiv = gc.get_cities()['703448']
+    names = gc.get_city_names(kyiv)
+    assert names[0] == 'Kyiv'
+    assert 'Київ' in names
+    assert 'Kiev' not in names
+    assert names == list(dict.fromkeys(names))
+
+    assert 'Kiev' in gc.get_city_names(kyiv, historic=True)
+    assert gc.get_city_names(kyiv, languages=('uk',)) == ['Kyiv', 'Київ']
+    # An unknown code contributes nothing rather than raising.
+    assert gc.get_city_names(kyiv, languages=('zz',)) == ['Kyiv']
+
+
+def test_search_cities_index_matches_a_scan():
+    # The exact, case insensitive path is answered from an index; every other combination
+    # scans. They must agree on membership, though not on order.
+    for query, attribute in (('London', 'name'), ('London', 'alternatenames'), ('NL', 'countrycode')):
+        indexed = gc.search_cities(query, attribute, contains_search=False)
+        scanned = [
+            c for c in gc.get_cities().values()
+            if query.casefold() in [v.casefold() for v in gc._city_values(c, attribute)]
+        ]
+        assert sorted(c['geonameid'] for c in indexed) == sorted(c['geonameid'] for c in scanned)
 
 
 def test_search_cities_case_sensitive():
@@ -424,3 +474,8 @@ def test_search_cities_scopes_by_country_and_parent():
     in_ecuador = gc.search_cities('Santa Rosa', 'name', countrycode='EC', contains_search=False)
     assert len(everywhere) > len(in_ecuador) > 0
     assert all(c['countrycode'] == 'EC' for c in in_ecuador)
+
+    # admin1code takes the bare code or the composite one, and narrows within the country.
+    for code in ('08', 'EC.08'):
+        assert gc.search_cities('Santa Rosa', 'name', countrycode='EC', admin1code=code, contains_search=False) == in_ecuador
+    assert gc.search_cities('Santa Rosa', 'name', countrycode='EC', admin1code='EC.19', contains_search=False) == []

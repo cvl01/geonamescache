@@ -77,3 +77,9 @@ def test_data_files_are_gzipped():
     data_dir = Path(geonamescache.__file__).parent / 'data'
     assert sorted(p.name for p in data_dir.glob('*.json')) == []
     assert len(list(data_dir.glob('*.json.gz'))) > 5
+
+
+def test_py_typed_marker_is_present():
+    # Without it type checkers treat the package as untyped and downstream projects
+    # need ignore_missing_imports, despite every module being annotated.
+    assert Path(geonamescache.__file__).parent.joinpath('py.typed').exists()

@@ -119,7 +119,14 @@ USStateName = Literal[
     "Wyoming",
 ]
 CitySearchAttribute = Literal[
-    "alternatenames", "admin1code", "admin2code", "countrycode", "featurecode", "name", "timezone"
+    "alternatenames",
+    "admin1code",
+    "admin2code",
+    "countrycode",
+    "featurecode",
+    "historicnames",
+    "name",
+    "timezone",
 ]
 
 
@@ -204,12 +211,13 @@ class Admin2(TypedDict):
 
 
 class City(TypedDict):
-    alternatenames: list[str]
+    alternatenames: dict[str, list[str]]
     admin1code: str
     admin2code: str
     countrycode: str
     featurecode: str
     geonameid: int
+    historicnames: dict[str, list[str]]
     latitude: float
     longitude: float
     name: str

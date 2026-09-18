@@ -60,6 +60,17 @@ def _flatten(
     return [n for n in dict.fromkeys(names) if n]
 
 
+def _record_names(
+    record: Mapping[str, Any], languages: Iterable[str] | None, historic: bool
+) -> list[str]:
+    """A division's or city's `name` plus its alternate names, deduplicated, name first."""
+    names = _flatten(record['name'], record['alternatenames'], languages, AGNOSTIC_KEYS)
+    if historic:
+        extra = _flatten('', record['historicnames'], languages, AGNOSTIC_KEYS)
+        names += [n for n in extra if n not in names]
+    return names
+
+
 class GeonamesCache:
     admin1: dict[Admin1CodeStr, Admin1] | None = None
     admin2: dict[Admin2CodeStr, Admin2] | None = None
@@ -72,8 +83,11 @@ class GeonamesCache:
 
     def __init__(self, min_city_population: int = 15000):
         self.min_city_population = min_city_population
-        # Per instance, because it indexes one particular cities dataset.
+        # Per instance, because they index one particular cities dataset.
         self.cities_by_names: dict[str, list[City]] | None = None
+        self._cities_by_country: dict[str, list[City]] | None = None
+        # Keyed by the searched attribute, then by country code, then by casefolded value.
+        self._city_by_value: dict[str, dict[str, dict[str, list[City]]]] = {}
         # Keyed by (admin level, whether historic names are included).
         self._admin_by_name: dict[tuple[int, bool], dict[str, list[Any]]] = {}
 
@@ -183,11 +197,7 @@ class GeonamesCache:
         Only 140 of the 3865 divisions have any: GeoNames flags the column sparsely, so
         an unflagged name is not evidence that the name is current.
         """
-        names = _flatten(admin1['name'], admin1['alternatenames'], languages, AGNOSTIC_KEYS)
-        if historic:
-            extra = _flatten('', admin1['historicnames'], languages, AGNOSTIC_KEYS)
-            names += [n for n in extra if n not in names]
-        return names
+        return _record_names(admin1, languages, historic)
 
     def get_us_states_by_names(self) -> dict[USStateName, USState]:
         return self.get_dataset_by_key(self.get_us_states(), 'name')
@@ -218,6 +228,18 @@ class GeonamesCache:
         """
         return self.get_cities_by_names().get(name, [])
 
+    def get_city_names(
+        self, city: City, *, languages: Iterable[str] | None = None, historic: bool = False
+    ) -> list[str]:
+        """The city's `name` plus its alternate names, deduplicated, name first.
+
+        Same shape and rules as `get_admin1_names()`: a city carries names only in the
+        languages of its own country plus English, untagged names and abbreviations are
+        always included whatever *languages* says, and *historic* appends names the
+        source marks as superseded, which can now belong to somewhere else.
+        """
+        return _record_names(city, languages, historic)
+
     def get_us_counties(self) -> list[USCounty]:
         if self.us_counties is None:
             self.us_counties = self._load_data('us_counties')
@@ -239,32 +261,75 @@ class GeonamesCache:
         is what makes a common toponym usable: "Santa Rosa" is hundreds of places worldwide
         and one inside a given province. *admin1code* takes the bare code (`11`) or the
         composite one (`CO.11`), and is ignored unless *countrycode* is given too.
+
+        An exact, case insensitive search is answered from an index of every value keyed by
+        country and casefolded value, built once per attribute; the other combinations scan,
+        but a *countrycode* narrows what they scan to that country's records. Results come
+        out in country order rather than geonameid order when the index is used.
         """
         countrycode = countrycode.upper() if countrycode else None
         admin1code = admin1code.rsplit('.', 1)[-1] if admin1code else None
+
+        def in_scope(record: City) -> bool:
+            return not (countrycode and admin1code and record['admin1code'] != admin1code)
+
+        if not contains_search and not case_sensitive:
+            index = self._city_value_index(attribute)
+            buckets = [index.get(countrycode, {})] if countrycode else list(index.values())
+            needle = query.casefold()
+            return [r for bucket in buckets for r in bucket.get(needle, []) if in_scope(r)]
+
+        needle = query if case_sensitive else query.casefold()
         results = []
-        query = (case_sensitive and query) or query.casefold()
-        for record in self.get_cities().values():
-            if countrycode and record['countrycode'] != countrycode:
+        for record in self._city_candidates(countrycode):
+            if not in_scope(record):
                 continue
-            if countrycode and admin1code and record['admin1code'] != admin1code:
-                continue
-            record_value = record[attribute]
-            if contains_search:
-                if isinstance(record_value, list):
-                    if any(query in ((case_sensitive and value) or value.casefold()) for value in record_value):
-                        results.append(record)
-                elif query in ((case_sensitive and record_value) or record_value.casefold()):
-                    results.append(record)
-            elif isinstance(record_value, list):
-                if case_sensitive:
-                    if query in record_value:
-                        results.append(record)
-                elif any(query == value.casefold() for value in record_value):
-                    results.append(record)
-            elif query == ((case_sensitive and record_value) or record_value.casefold()):
+            values = self._city_values(record, attribute)
+            if not case_sensitive:
+                values = [v.casefold() for v in values]
+            if any(needle in v for v in values) if contains_search else needle in values:
                 results.append(record)
         return results
+
+    def _city_candidates(self, countrycode: str | None) -> Iterable[City]:
+        """The records a scanning search has to look at, narrowed to one country when given."""
+        if countrycode is None:
+            return self.get_cities().values()
+        if self._cities_by_country is None:
+            index: dict[str, list[City]] = {}
+            for city in self.get_cities().values():
+                index.setdefault(city['countrycode'], []).append(city)
+            self._cities_by_country = index
+        return self._cities_by_country.get(countrycode, [])
+
+    @staticmethod
+    def _city_values(record: City, attribute: CitySearchAttribute) -> list[str]:
+        """The strings an attribute contributes: every bucket of a language-keyed one, else itself."""
+        value: Any = record[attribute]
+        if isinstance(value, dict):
+            return [name for bucket in value.values() for name in bucket]
+        return [value]
+
+    def _city_value_index(self, attribute: CitySearchAttribute) -> dict[str, dict[str, list[City]]]:
+        """Country code -> casefolded value -> city records. Built once per attribute.
+
+        Keyed by country first so a scoped search touches one country's names only, which is
+        the same trade `get_cities_by_names()` makes for the primary name: one pass over the
+        dataset instead of one per query.
+        """
+        index = self._city_by_value.get(attribute)
+        if index is None:
+            index = {}
+            for record in self.get_cities().values():
+                by_value = index.setdefault(record['countrycode'], {})
+                for value in self._city_values(record, attribute):
+                    bucket = by_value.setdefault(value.casefold(), [])
+                    # A record's values are added together, so a repeat is always the last
+                    # entry and identity is enough to spot it.
+                    if not bucket or bucket[-1] is not record:
+                        bucket.append(record)
+            self._city_by_value[attribute] = index
+        return index
 
     def search_admin1(
         self,
